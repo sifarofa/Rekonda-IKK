@@ -1,0 +1,6 @@
+{
+  "name": "Rekonda - Dashboard Rekonsiliasi Data Daerah",
+  "description": "Dashboard interaktif dan clean untuk rekonsiliasi data harga komoditas daerah, verifikasi data responden per triwulan, dan analisis disparitas harga antar kabupaten/kota.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

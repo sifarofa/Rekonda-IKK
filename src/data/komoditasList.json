@@ -1,0 +1,625 @@
+[
+  {
+    "rawKode": "[0102] Tanah Uruk Tanah Biasa",
+    "kode": "0102",
+    "nama": "Tanah Uruk Tanah Biasa",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0103] Tanah Uruk Material Urukan Lainnya",
+    "kode": "0103",
+    "nama": "Tanah Uruk Material Urukan Lainnya",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0201] Pasir Pasir Pasang",
+    "kode": "0201",
+    "nama": "Pasir Pasir Pasang",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0202] Pasir Pasir Beton / Cor ",
+    "kode": "0202",
+    "nama": "Pasir Pasir Beton / Cor",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0301] Batu Pondasi Batu Kali Utuh",
+    "kode": "0301",
+    "nama": "Batu Pondasi Batu Kali Utuh",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0302] Batu Pondasi Batu Kali Belah",
+    "kode": "0302",
+    "nama": "Batu Pondasi Batu Kali Belah",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0303] Batu Pondasi Batu Gunung",
+    "kode": "0303",
+    "nama": "Batu Pondasi Batu Gunung",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0401] Batu Bata Batu Bata Tanah Liat (bata merah)",
+    "kode": "0401",
+    "nama": "Batu Bata Batu Bata Tanah Liat (bata merah)",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0501] Batako Batako Berlubang ",
+    "kode": "0501",
+    "nama": "Batako Batako Berlubang",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0502] Batako Batako Tidak Berlubang",
+    "kode": "0502",
+    "nama": "Batako Batako Tidak Berlubang",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0601] Bata Ringan Cellcon atau Hebel",
+    "kode": "0601",
+    "nama": "Bata Ringan Cellcon atau Hebel",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0701] Batu Split Ukuran 1 - 2 cm",
+    "kode": "0701",
+    "nama": "Batu Split Ukuran 1 - 2 cm",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0702] Batu Split Ukuran 2 - 3 cm",
+    "kode": "0702",
+    "nama": "Batu Split Ukuran 2 - 3 cm",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[0801] Seng Gelombang Ukuran (0,02 x 80 x 180) cm",
+    "kode": "0801",
+    "nama": "Seng Gelombang Ukuran (0,02 x 80 x 180) cm",
+    "satuan": "lembar",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[0802] Seng Gelombang Ukuran (0,03 x 80 x 180) cm",
+    "kode": "0802",
+    "nama": "Seng Gelombang Ukuran (0,03 x 80 x 180) cm",
+    "satuan": "lembar",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[0904] Paku Paku Triplek",
+    "kode": "0904",
+    "nama": "Paku Paku Triplek",
+    "satuan": "kg",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[0905] Paku Paku Kayu 4\" - 6\"",
+    "kode": "0905",
+    "nama": "Paku Paku Kayu 4\" - 6\"",
+    "satuan": "kg",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1001] Semen Portland Portland Composite Cement (PCC) (SNI 15-7064-2004)",
+    "kode": "1001",
+    "nama": "Semen Portland Portland Composite Cement (PCC) (SNI 15-7064-2004)",
+    "satuan": "kg",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1101] Besi Beton (FULL SNI) SNI 07-2052-2002 Besi Beton Polos (BJTP 24) Ukuran d = 6 mm; p = 12 m",
+    "kode": "1101",
+    "nama": "Besi Beton (FULL SNI) SNI 07-2052-2002 Besi Beton Polos (BJTP 24) Ukuran d = 6 mm; p = 12 m",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1102] Besi Beton (FULL SNI) SNI 07-2052-2002 Besi Beton Polos (BJTP 24) Ukuran d = 8 mm; p = 12 m",
+    "kode": "1102",
+    "nama": "Besi Beton (FULL SNI) SNI 07-2052-2002 Besi Beton Polos (BJTP 24) Ukuran d = 8 mm; p = 12 m",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1104] Besi Beton (FULL SNI) SNI 07-2052-2002 Besi Beton Ulir (BJTS 32) Ukuran d = 10 mm; p = 12 m",
+    "kode": "1104",
+    "nama": "Besi Beton (FULL SNI) SNI 07-2052-2002 Besi Beton Ulir (BJTS 32) Ukuran d = 10 mm; p = 12 m",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1105] Besi Beton (FULL SNI) SNI 07-2052-2002 Besi Beton Ulir (BJTS 32) Ukuran d = 16 mm; p = 12 m",
+    "kode": "1105",
+    "nama": "Besi Beton (FULL SNI) SNI 07-2052-2002 Besi Beton Ulir (BJTS 32) Ukuran d = 16 mm; p = 12 m",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "Atap Metal Genteng Metal (Tebal 0.25 mm)",
+    "kode": "1201",
+    "nama": "Atap Metal Genteng Metal (Tebal 0.25 mm)",
+    "satuan": "lembar",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "Atap Metal Genteng Metal (Tebal 0.30 mm)",
+    "kode": "1202",
+    "nama": "Atap Metal Genteng Metal (Tebal 0.30 mm)",
+    "satuan": "lembar",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "Atap Metal Atap Spandex (Tebal 0.30 mm)",
+    "kode": "1203",
+    "nama": "Atap Metal Atap Spandex (Tebal 0.30 mm)",
+    "satuan": "lembar",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1301] Kloset Kloset Duduk Standar ",
+    "kode": "1301",
+    "nama": "Kloset Kloset Duduk Standar",
+    "satuan": "buah",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1302] Kloset Kloset Jongkok",
+    "kode": "1302",
+    "nama": "Kloset Kloset Jongkok",
+    "satuan": "buah",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1403] Seng Plat Seng Plat BJLS 28 (Tebal 0,28 mm); L = 90",
+    "kode": "1403",
+    "nama": "Seng Plat Seng Plat BJLS 28 (Tebal 0,28 mm); L = 90",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1404] Seng Plat Seng Plat BJLS 20; L = 40",
+    "kode": "1404",
+    "nama": "Seng Plat Seng Plat BJLS 20; L = 40",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "Seng Plat Seng Plat BJLS 30 (Tebal 0,30 mm); L = 90",
+    "kode": "1405",
+    "nama": "Seng Plat Seng Plat BJLS 30 (Tebal 0,30 mm); L = 90",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1501] Pipa PVC AW d 1/2\" Panjang 4 m",
+    "kode": "1501",
+    "nama": "Pipa PVC AW d 1/2\" Panjang 4 m",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1502] Pipa PVC AW d 3/4\" Panjang 4 m",
+    "kode": "1502",
+    "nama": "Pipa PVC AW d 3/4\" Panjang 4 m",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1505] Pipa PVC D d 3\" Panjang 4 m",
+    "kode": "1505",
+    "nama": "Pipa PVC D d 3\" Panjang 4 m",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1506] Pipa PVC D d 4\" Panjang 4 m",
+    "kode": "1506",
+    "nama": "Pipa PVC D d 4\" Panjang 4 m",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1601] Kayu Balok Kayu Balok Kelas II",
+    "kode": "1601",
+    "nama": "Kayu Balok Kayu Balok Kelas II",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[1602] Kayu Balok Kayu Balok Kelas III",
+    "kode": "1602",
+    "nama": "Kayu Balok Kayu Balok Kelas III",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[1701] Kayu Papan Kayu Papan Kelas II",
+    "kode": "1701",
+    "nama": "Kayu Papan Kayu Papan Kelas II",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[1702] Kayu Papan Kayu Papan Kelas III",
+    "kode": "1702",
+    "nama": "Kayu Papan Kayu Papan Kelas III",
+    "satuan": "m3",
+    "kategori": "Material Natural dan Produk Lanjutannya"
+  },
+  {
+    "rawKode": "[1801] Kayu Lapis/Triplek Triplek / Plywood 3 mm",
+    "kode": "1801",
+    "nama": "Kayu Lapis/Triplek Triplek / Plywood 3 mm",
+    "satuan": "lembar",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1804] Kayu Lapis/Triplek Triplek / Plywood 9 mm",
+    "kode": "1804",
+    "nama": "Kayu Lapis/Triplek Triplek / Plywood 9 mm",
+    "satuan": "lembar",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1901] Cat Emulsi Cat Tembok Eksterior",
+    "kode": "1901",
+    "nama": "Cat Emulsi Cat Tembok Eksterior",
+    "satuan": "kg",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[1902] Cat Emulsi Cat Tembok Interior",
+    "kode": "1902",
+    "nama": "Cat Emulsi Cat Tembok Interior",
+    "satuan": "kg",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[2001] Cat Minyak Besi/Kayu Cat Besi/Kayu",
+    "kode": "2001",
+    "nama": "Cat Minyak Besi/Kayu Cat Besi/Kayu",
+    "satuan": "kg",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[2101] Cat Minyak Meni Besi/Kayu Cat Meni Besi/Kayu",
+    "kode": "2101",
+    "nama": "Cat Minyak Meni Besi/Kayu Cat Meni Besi/Kayu",
+    "satuan": "kg",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[2202] Tegel/Keramik Keramik Uk. 40 x 40 cm (putih polos)",
+    "kode": "2202",
+    "nama": "Tegel/Keramik Keramik Uk. 40 x 40 cm (putih polos)",
+    "satuan": "dus",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[2401] Kaca Kaca Polos Bening 3 mm",
+    "kode": "2401",
+    "nama": "Kaca Kaca Polos Bening 3 mm",
+    "satuan": "m2",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[2402] Kaca Kaca Polos Bening 5 mm",
+    "kode": "2402",
+    "nama": "Kaca Kaca Polos Bening 5 mm",
+    "satuan": "m2",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[2505] Aspal Curah Grade 60/70",
+    "kode": "2505",
+    "nama": "Aspal Curah Grade 60/70",
+    "satuan": "ton",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[2506] Aspal Drum Grade 60/70 (155 kg)",
+    "kode": "2506",
+    "nama": "Aspal Drum Grade 60/70 (155 kg)",
+    "satuan": "drum",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[2601] Gypsum Gypsum Plafon 9 mm",
+    "kode": "2601",
+    "nama": "Gypsum Gypsum Plafon 9 mm",
+    "satuan": "m2",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[2701] Kabel Kabel NYA Ukuran 1 x 1,5 mm2",
+    "kode": "2701",
+    "nama": "Kabel Kabel NYA Ukuran 1 x 1,5 mm2",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[2702] Kabel Kabel NYA Ukuran 1 x 2,5 mm2",
+    "kode": "2702",
+    "nama": "Kabel Kabel NYA Ukuran 1 x 2,5 mm2",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[2901] Mesin Pompa Air Pompa Shallow Pump (kedalaman s.d. 10 m)",
+    "kode": "2901",
+    "nama": "Mesin Pompa Air Pompa Shallow Pump (kedalaman s.d. 10 m)",
+    "satuan": "buah",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[2903] Mesin Pompa Air Pompa Jet Pump (kedalaman >26 m)",
+    "kode": "2903",
+    "nama": "Mesin Pompa Air Pompa Jet Pump (kedalaman >26 m)",
+    "satuan": "buah",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[3001] Rangka Atap Baja Profil Canal \"C\" Tipe C75.065",
+    "kode": "3001",
+    "nama": "Rangka Atap Baja Profil Canal \"C\" Tipe C75.065",
+    "satuan": "batang",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[3003] Rangka Atap Baja Profil Canal \"C\"  Tipe C75.075",
+    "kode": "3003",
+    "nama": "Rangka Atap Baja Profil Canal \"C\"  Tipe C75.075",
+    "satuan": "batang",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[3101] Aluminium Profil Kusen Aluminium 3 inchi (openback)",
+    "kode": "3101",
+    "nama": "Aluminium Profil Kusen Aluminium 3 inchi (openback)",
+    "satuan": "batang",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[3102] Aluminium Profil Kusen Aluminium 4 inchi",
+    "kode": "3102",
+    "nama": "Aluminium Profil Kusen Aluminium 4 inchi",
+    "satuan": "batang",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[3203] Tangki Air Fiber Ukuran 1000 - 1100 liter",
+    "kode": "3203",
+    "nama": "Tangki Air Fiber Ukuran 1000 - 1100 liter",
+    "satuan": "buah",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[3206] Tangki Air Fiber Ukuran 500 - 600 liter",
+    "kode": "3206",
+    "nama": "Tangki Air Fiber Ukuran 500 - 600 liter",
+    "satuan": "buah",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[3304] Lampu Lampu SL (TL Pendek) 18 W model jari",
+    "kode": "3304",
+    "nama": "Lampu Lampu SL (TL Pendek) 18 W model jari",
+    "satuan": "buah",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[3305] Lampu Lampu SL (TL Pendek) 20 W model jari",
+    "kode": "3305",
+    "nama": "Lampu Lampu SL (TL Pendek) 20 W model jari",
+    "satuan": "buah",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[3402] MCB 1 Phasa 6 Ampere",
+    "kode": "3402",
+    "nama": "MCB 1 Phasa 6 Ampere",
+    "satuan": "buah",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[3403] MCB 1 Phasa 10 Ampere",
+    "kode": "3403",
+    "nama": "MCB 1 Phasa 10 Ampere",
+    "satuan": "buah",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "Upah Mandor Upah Mandor",
+    "kode": "4201",
+    "nama": "Upah Mandor Upah Mandor",
+    "satuan": "O-H",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[4301] Upah Kepala Tukang Upah Kepala Tukang",
+    "kode": "4301",
+    "nama": "Upah Kepala Tukang Upah Kepala Tukang",
+    "satuan": "O-H",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[4401] Upah Tukang Batu Upah Tukang Batu",
+    "kode": "4401",
+    "nama": "Upah Tukang Batu Upah Tukang Batu",
+    "satuan": "O-H",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[4501] Upah Tukang Kayu Upah Tukang Kayu",
+    "kode": "4501",
+    "nama": "Upah Tukang Kayu Upah Tukang Kayu",
+    "satuan": "O-H",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[4601] Upah Instalatir Listrik Upah Instalatir Listrik",
+    "kode": "4601",
+    "nama": "Upah Instalatir Listrik Upah Instalatir Listrik",
+    "satuan": "TITIK",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[4701] Upah Pembantu Tukang Upah Pembantu Tukang",
+    "kode": "4701",
+    "nama": "Upah Pembantu Tukang Upah Pembantu Tukang",
+    "satuan": "O-H",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5101] Excavator Tenaga Mesin (Lebih Kecil Dari) 80 HP",
+    "kode": "5101",
+    "nama": "Excavator Tenaga Mesin (Lebih Kecil Dari) 80 HP",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5102] Excavator Tenaga Mesin 80 - 140 HP",
+    "kode": "5102",
+    "nama": "Excavator Tenaga Mesin 80 - 140 HP",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5201] Buldozer Tenaga Mesin (Lebih Kecil Dari) 100 HP",
+    "kode": "5201",
+    "nama": "Buldozer Tenaga Mesin (Lebih Kecil Dari) 100 HP",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5202] Buldozer Tenaga Mesin 100 - 150 HP",
+    "kode": "5202",
+    "nama": "Buldozer Tenaga Mesin 100 - 150 HP",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5301] Loader Wheel Loader Bucket 1.0 - 1.6 m3",
+    "kode": "5301",
+    "nama": "Loader Wheel Loader Bucket 1.0 - 1.6 m3",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5302] Loader Track Loader 75 - 100 HP",
+    "kode": "5302",
+    "nama": "Loader Track Loader 75 - 100 HP",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5401] Roller Tandem Roller 6 - 8 Ton",
+    "kode": "5401",
+    "nama": "Roller Tandem Roller 6 - 8 Ton",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5402] Roller Tandem Roller 8 - 10 Ton",
+    "kode": "5402",
+    "nama": "Roller Tandem Roller 8 - 10 Ton",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5403] Roller Vibratory Roller 5 - 8 Ton",
+    "kode": "5403",
+    "nama": "Roller Vibratory Roller 5 - 8 Ton",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5501] Motor Grader Tenaga Mesin (Lebih Kecil atau Sama Dengan) 100 HP",
+    "kode": "5501",
+    "nama": "Motor Grader Tenaga Mesin (Lebih Kecil atau Sama Dengan) 100 HP",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5502] Motor Grader Tenaga Mesin (Lebih Besar Dari) 100 HP",
+    "kode": "5502",
+    "nama": "Motor Grader Tenaga Mesin (Lebih Besar Dari) 100 HP",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5601] Asphalt Finisher Kapasitas Hopper (Lebih Kecil atau Sama Dengan) 10 Ton",
+    "kode": "5601",
+    "nama": "Asphalt Finisher Kapasitas Hopper (Lebih Kecil atau Sama Dengan) 10 Ton",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5602] Asphalt Finisher Kapasitas Hopper (Lebih Besar Dari) 10 Ton",
+    "kode": "5602",
+    "nama": "Asphalt Finisher Kapasitas Hopper (Lebih Besar Dari) 10 Ton",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5701] Dump Truck Kapasitas Muatan 3 - 4 m3",
+    "kode": "5701",
+    "nama": "Dump Truck Kapasitas Muatan 3 - 4 m3",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5702] Dump Truck Kapasitas Muatan 6 - 8 m3",
+    "kode": "5702",
+    "nama": "Dump Truck Kapasitas Muatan 6 - 8 m3",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5801] Generator Set Kapasitas 60 KVA",
+    "kode": "5801",
+    "nama": "Generator Set Kapasitas 60 KVA",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5802] Generator Set Kapasitas 80 KVA",
+    "kode": "5802",
+    "nama": "Generator Set Kapasitas 80 KVA",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5803] Generator Set Kapasitas 135 KVA",
+    "kode": "5803",
+    "nama": "Generator Set Kapasitas 135 KVA",
+    "satuan": "200 JAM",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5902] Granit Lantai Granit Uk. 60 x 60 cm (putih polos)",
+    "kode": "5902",
+    "nama": "Granit Lantai Granit Uk. 60 x 60 cm (putih polos)",
+    "satuan": "dus",
+    "kategori": "Material Pabrikan"
+  }
+]
