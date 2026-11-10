@@ -8,9 +8,10 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  CheckCircle2
+  CheckCircle2,
+  ChevronRight
 } from 'lucide-react';
-import { KabupatenRekon, UserAuth } from '../types/rekonda';
+import { KabupatenRekon, UserAuth, DisplayDensity } from '../types/rekonda';
 import { formatRupiahNumber, formatPercent } from '../utils/formatters';
 
 interface RekonTableProps {
@@ -23,6 +24,7 @@ interface RekonTableProps {
   onSelectRow?: (item: KabupatenRekon) => void;
   onSortedDataChange?: (sortedList: KabupatenRekon[]) => void;
   currentUser: UserAuth;
+  density?: DisplayDensity;
 }
 
 export type SortField =
@@ -48,7 +50,8 @@ export const RekonTable: React.FC<RekonTableProps> = ({
   selectedId,
   onSelectRow,
   onSortedDataChange,
-  currentUser
+  currentUser,
+  density = 'normal'
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState<number>(15);
@@ -128,10 +131,15 @@ export const RekonTable: React.FC<RekonTableProps> = ({
     );
   };
 
+  // Density styles calculation
+  const rowPaddingY = density === 'compact' ? 'py-1.5' : density === 'comfortable' ? 'py-3' : 'py-2';
+  const rowPaddingX = density === 'compact' ? 'px-1' : density === 'comfortable' ? 'px-2' : 'px-1.5';
+  const tableFontSize = density === 'compact' ? 'text-[10.5px]' : density === 'comfortable' ? 'text-xs' : 'text-[11px]';
+
   return (
-    <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 mb-6 w-full overflow-hidden">
+    <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-3 sm:p-4 mb-6 w-full overflow-hidden">
       {/* Table Toolbar (Excel, Cetak, Entries, Search) */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-3 text-xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 mb-3 text-xs">
         {/* Left: Excel & Cetak buttons */}
         <div className="flex items-center gap-2">
           <button
@@ -155,33 +163,30 @@ export const RekonTable: React.FC<RekonTableProps> = ({
           </span>
         </div>
 
-        {/* Center: Entries dropdown */}
-        <div className="flex items-center gap-2 text-xs text-slate-600">
-          <span>tampilkan</span>
-          <select
-            value={entriesPerPage}
-            onChange={(e) => {
-              setEntriesPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="bg-white border border-slate-300 text-slate-800 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer"
-          >
-            <option value={10}>10</option>
-            <option value={15}>15</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-          </select>
-          <span>entri</span>
-        </div>
+        {/* Right side: Entries & Search */}
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 text-xs">
+          {/* Entries dropdown */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+            <span>tampilkan</span>
+            <select
+              value={entriesPerPage}
+              onChange={(e) => {
+                setEntriesPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="bg-white border border-slate-300 text-slate-800 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+            <span>entri</span>
+          </div>
 
-        {/* Right: Search box */}
-        <div className="flex items-center gap-2">
-          <label htmlFor="search-table" className="text-xs font-semibold text-slate-700">
-            Cari:
-          </label>
-          <div className="relative">
+          {/* Search box */}
+          <div className="relative flex-1 sm:flex-initial">
             <input
-              id="search-table"
               type="text"
               value={searchTerm}
               onChange={(e) => {
@@ -189,7 +194,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
                 setCurrentPage(1);
               }}
               placeholder="Cari kab / merek..."
-              className="bg-white border border-slate-300 rounded-md pl-2.5 pr-7 py-1 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 w-36 sm:w-48"
+              className="bg-white border border-slate-300 rounded-md pl-2.5 pr-7 py-1 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 w-full sm:w-44"
             />
             {searchTerm ? (
               <button
@@ -205,15 +210,23 @@ export const RekonTable: React.FC<RekonTableProps> = ({
         </div>
       </div>
 
-      {/* Main Table: Auto-fit to screen, NO HORIZONTAL SCROLL! */}
-      <div className="w-full border border-slate-200 rounded-lg overflow-hidden">
-        <table className="w-full table-fixed text-[11px] leading-tight border-collapse">
+      {/* Mobile Horizontal Scroll Indicator */}
+      <div className="sm:hidden text-[10px] text-slate-500 flex items-center justify-between pb-1 px-0.5">
+        <span>* Kolom Kabupaten tersemat di kiri</span>
+        <span className="flex items-center gap-0.5 font-medium text-sky-700">
+          Geser ke kanan <ChevronRight className="w-3 h-3 inline" />
+        </span>
+      </div>
+
+      {/* Main Table: Responsive Scrollable Grid with Sticky First Column */}
+      <div className="w-full overflow-x-auto border border-slate-200 rounded-lg shadow-2xs">
+        <table className={`w-full min-w-[940px] lg:min-w-full table-fixed ${tableFontSize} leading-tight border-collapse`}>
           <thead>
             <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 select-none text-center">
-              {/* 1. Kabupaten (~14%) */}
+              {/* 1. Kabupaten (~14%) Sticky Left */}
               <th
                 onClick={() => handleSort('kode')}
-                className="py-2.5 px-2 text-left cursor-pointer hover:bg-slate-200 transition-colors w-[14%] group"
+                className="py-2.5 px-2 text-left cursor-pointer hover:bg-slate-200 transition-colors w-[140px] sm:w-[14%] group sticky left-0 bg-slate-100 z-20 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]"
                 title="Klik untuk sortir Kode Kabupaten"
               >
                 <div className="flex items-center gap-0.5 truncate">
@@ -225,7 +238,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               {/* 2. Harga 2027 (~10%) */}
               <th
                 onClick={() => handleSort('harga2027')}
-                className="py-2.5 px-1.5 text-right cursor-pointer hover:bg-rose-100/70 bg-rose-50/60 transition-colors w-[10%] group"
+                className="py-2.5 px-1.5 text-right cursor-pointer hover:bg-rose-100/70 bg-rose-50/60 transition-colors w-[95px] sm:w-[10%] group"
                 title="Rata-rata tahun berjalan (TW III/IV 2026 & TW I/II 2027 yang tersedia)"
               >
                 <div className="flex items-center justify-end gap-0.5">
@@ -237,7 +250,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               {/* 3. TW III 2026 (~7.5%) */}
               <th
                 onClick={() => handleSort('hargaTw3_2026')}
-                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[7.5%] group"
+                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[75px] sm:w-[7.5%] group"
                 title="Harga TW III 2026"
               >
                 <div className="flex items-center justify-end gap-0.5">
@@ -249,7 +262,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               {/* 4. TW IV 2026 (~7.5%) */}
               <th
                 onClick={() => handleSort('hargaTw4_2026')}
-                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[7.5%] group"
+                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[75px] sm:w-[7.5%] group"
                 title="Harga TW IV 2026"
               >
                 <div className="flex items-center justify-end gap-0.5">
@@ -261,7 +274,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               {/* 5. TW I 2027 (~7.5%) */}
               <th
                 onClick={() => handleSort('hargaTw1_2027')}
-                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[7.5%] group"
+                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[75px] sm:w-[7.5%] group"
                 title="Harga TW I 2027"
               >
                 <div className="flex items-center justify-end gap-0.5">
@@ -273,7 +286,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               {/* 6. TW II 2027 (~7.5%) */}
               <th
                 onClick={() => handleSort('hargaTw2_2027')}
-                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[7.5%] group"
+                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[75px] sm:w-[7.5%] group"
                 title="Harga TW II 2027"
               >
                 <div className="flex items-center justify-end gap-0.5">
@@ -285,7 +298,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               {/* 7. Koefisien Variasi (~6.5%) */}
               <th
                 onClick={() => handleSort('koefisienVariasi')}
-                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[6.5%] group"
+                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[65px] sm:w-[6.5%] group"
                 title="Koefisien Variasi (%) variasi harga antar responden di kab/kota bersangkutan"
               >
                 <div className="flex items-center justify-end gap-0.5">
@@ -297,7 +310,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               {/* 8. Nama Kualitas/Merek (Mode) (~12%) */}
               <th
                 onClick={() => handleSort('namaKualitas')}
-                className="py-2.5 px-2 text-left cursor-pointer hover:bg-slate-200 transition-colors w-[12%] group"
+                className="py-2.5 px-2 text-left cursor-pointer hover:bg-slate-200 transition-colors w-[110px] sm:w-[12%] group"
                 title="Merek yang paling sering muncul dari responden di kabupaten bersangkutan"
               >
                 <div className="flex items-center gap-0.5 truncate">
@@ -309,7 +322,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               {/* 9. Harga 2026 (~8.5%) */}
               <th
                 onClick={() => handleSort('harga2026')}
-                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[8.5%] group"
+                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[85px] sm:w-[8.5%] group"
                 title="Harga Tahun Lalu (Rata-rata dari database sheet rekonda26)"
               >
                 <div className="flex items-center justify-end gap-0.5">
@@ -321,7 +334,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               {/* 10. Rasio (~6%) */}
               <th
                 onClick={() => handleSort('rasio')}
-                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[6%] group"
+                className="py-2.5 px-1 text-right cursor-pointer hover:bg-slate-200 transition-colors w-[60px] sm:w-[6%] group"
                 title="Rasio perbandingan harga 2027 terhadap harga 2026"
               >
                 <div className="flex items-center justify-end gap-0.5">
@@ -333,7 +346,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               {/* 11. Catatan (Sebelum Kolom Aksi) (~5%) */}
               <th
                 onClick={() => handleSort('catatan')}
-                className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors w-[5%] group"
+                className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors w-[55px] sm:w-[5%] group"
                 title="Catatan Lapangan & Justifikasi"
               >
                 <div className="flex items-center justify-center gap-0.5">
@@ -343,7 +356,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
               </th>
 
               {/* 12. Aksi (~7% with View Wilayah + Detail icons) */}
-              <th className="py-2.5 px-1 text-center w-[7%]">
+              <th className="py-2.5 px-1 text-center w-[60px] sm:w-[7%]">
                 Aksi
               </th>
             </tr>
@@ -373,8 +386,12 @@ export const RekonTable: React.FC<RekonTableProps> = ({
                         : 'bg-slate-50/40 hover:bg-slate-100/60'
                     }`}
                   >
-                    {/* 1. Kabupaten */}
-                    <td className="py-2 px-2 font-medium text-slate-900 truncate">
+                    {/* 1. Kabupaten - STICKY LEFT */}
+                    <td
+                      className={`${rowPaddingY} ${rowPaddingX} font-medium text-slate-900 truncate sticky left-0 z-10 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] ${
+                        isSelected ? 'bg-rose-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                      }`}
+                    >
                       <div className="flex items-center gap-1 truncate" title={`[${row.kode}] ${row.nama}`}>
                         <span className="font-mono text-slate-500 text-[10px]">[{row.kode}]</span>
                         <span className="font-bold text-slate-800 truncate">{row.nama}</span>
@@ -387,32 +404,32 @@ export const RekonTable: React.FC<RekonTableProps> = ({
                     </td>
 
                     {/* 2. Harga 2027 (Rata-rata berjalan) */}
-                    <td className="py-2 px-1.5 text-right font-mono font-bold text-slate-900 bg-rose-50/30 tabular-nums">
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono font-bold text-slate-900 bg-rose-50/30 tabular-nums`}>
                       {formatRupiahNumber(row.harga2027)}
                     </td>
 
                     {/* 3. TW III 2026 */}
-                    <td className="py-2 px-1 text-right font-mono text-slate-700 tabular-nums">
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono text-slate-700 tabular-nums`}>
                       {row.hargaTw3_2026 > 0 ? formatRupiahNumber(row.hargaTw3_2026) : '-'}
                     </td>
 
                     {/* 4. TW IV 2026 */}
-                    <td className="py-2 px-1 text-right font-mono text-slate-700 tabular-nums">
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono text-slate-700 tabular-nums`}>
                       {row.hargaTw4_2026 > 0 ? formatRupiahNumber(row.hargaTw4_2026) : '-'}
                     </td>
 
                     {/* 5. TW I 2027 */}
-                    <td className="py-2 px-1 text-right font-mono text-slate-600 tabular-nums">
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono text-slate-600 tabular-nums`}>
                       {row.hargaTw1_2027 > 0 ? formatRupiahNumber(row.hargaTw1_2027) : '-'}
                     </td>
 
                     {/* 6. TW II 2027 */}
-                    <td className="py-2 px-1 text-right font-mono text-slate-600 tabular-nums">
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono text-slate-600 tabular-nums`}>
                       {row.hargaTw2_2027 > 0 ? formatRupiahNumber(row.hargaTw2_2027) : '-'}
                     </td>
 
                     {/* 7. Koefisien Variasi */}
-                    <td className="py-2 px-1 text-right font-mono tabular-nums">
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono tabular-nums`}>
                       <span
                         className={`font-semibold ${
                           isHighCV
@@ -428,19 +445,19 @@ export const RekonTable: React.FC<RekonTableProps> = ({
                     </td>
 
                     {/* 8. Nama Kualitas / Merek Dominan */}
-                    <td className="py-2 px-2 text-slate-700 truncate" title={`Merek paling banyak muncul: ${row.namaKualitas}`}>
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-slate-700 truncate`} title={`Merek paling banyak muncul: ${row.namaKualitas}`}>
                       <span className="truncate block font-medium text-slate-800">
                         {row.namaKualitas || 'Standar'}
                       </span>
                     </td>
 
-                    {/* 9. Harga 2026 (Tahun Lalu dari sheet rekonda26) */}
-                    <td className="py-2 px-1 text-right font-mono text-slate-600 tabular-nums">
+                    {/* 9. Harga 2026 (Tahun Lalu) */}
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono text-slate-600 tabular-nums`}>
                       {formatRupiahNumber(row.harga2026)}
                     </td>
 
                     {/* 10. Rasio */}
-                    <td className="py-2 px-1 text-right font-mono tabular-nums">
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono tabular-nums`}>
                       <span
                         className={`font-bold ${
                           row.rasio > 106
@@ -454,8 +471,8 @@ export const RekonTable: React.FC<RekonTableProps> = ({
                       </span>
                     </td>
 
-                    {/* 11. Catatan (Sebelum Kolom Aksi) */}
-                    <td className="py-2 px-1 text-center">
+                    {/* 11. Catatan */}
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-center`}>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -474,9 +491,8 @@ export const RekonTable: React.FC<RekonTableProps> = ({
                     </td>
 
                     {/* 12. Aksi: Detail Rekonda Komoditas */}
-                    <td className="py-2 px-1 text-center">
+                    <td className={`${rowPaddingY} ${rowPaddingX} text-center`}>
                       <div className="flex items-center justify-center">
-                        {/* Detail Komoditas Button (View Responden) */}
                         <button
                           type="button"
                           onClick={(e) => {

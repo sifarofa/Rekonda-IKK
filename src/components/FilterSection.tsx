@@ -174,7 +174,7 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
 
           {/* Action Buttons */}
           <div className="md:col-span-4 flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
               <button
                 type="button"
                 onClick={onTampilkan}

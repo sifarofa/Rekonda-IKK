@@ -9,8 +9,9 @@ import { RespondentFormModal } from './components/RespondentFormModal';
 import { NotePreviewModal } from './components/NotePreviewModal';
 import { AuthModal } from './components/AuthModal';
 import { UploadModal } from './components/UploadModal';
+import { DisplayAdjustModal } from './components/DisplayAdjustModal';
 import { PROVINSI_LIST, KOMODITAS_LIST, INITIAL_KABUPATEN_DATA } from './data/mockData';
-import { KabupatenRekon, RespondenData, Komoditas, Provinsi, UserAuth, StatusRekon } from './types/rekonda';
+import { KabupatenRekon, RespondenData, Komoditas, Provinsi, UserAuth, StatusRekon, DisplaySettings } from './types/rekonda';
 import { calculateStats, getDominantBrand } from './utils/formatters';
 import {
   exportCurrentTableToExcel,
@@ -47,6 +48,33 @@ export default function App() {
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+  const [isDisplayAdjustOpen, setIsDisplayAdjustOpen] = useState<boolean>(false);
+
+  // Device & Display Settings (Persisted in localStorage)
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(() => {
+    try {
+      const saved = localStorage.getItem('rekonda_display_settings');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { density: 'normal', scale: 'normal', width: 'contained' };
+  });
+
+  const handleUpdateDisplaySettings = (newSettings: DisplaySettings) => {
+    setDisplaySettings(newSettings);
+    try {
+      localStorage.setItem('rekonda_display_settings', JSON.stringify(newSettings));
+    } catch {}
+    showToast('Tampilan berhasil disesuaikan.');
+  };
+
+  const handleResetDisplaySettings = () => {
+    const defaultSettings: DisplaySettings = { density: 'normal', scale: 'normal', width: 'contained' };
+    setDisplaySettings(defaultSettings);
+    try {
+      localStorage.setItem('rekonda_display_settings', JSON.stringify(defaultSettings));
+    } catch {}
+    showToast('Pengaturan tampilan dikembalikan ke standar.');
+  };
 
   // Selected Province & Commodity
   const [selectedProvinsi, setSelectedProvinsi] = useState<Provinsi>(PROVINSI_LIST[0]);
@@ -529,17 +557,28 @@ export default function App() {
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenUpload={() => setIsUploadModalOpen(true)}
+        onOpenDisplayAdjust={() => setIsDisplayAdjustOpen(true)}
         activeView={activeView}
         onSelectView={(v) => setActiveView(v)}
         anomalyCount={anomalyCount}
       />
 
-      {/* Main Full-width Container (Auto-fit to screen) */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-2.5 sm:px-4 lg:px-6 py-4">
+      {/* Main Container with responsive scaling and width adjust */}
+      <main
+        className={`flex-1 w-full ${
+          displaySettings.width === 'full' ? 'max-w-none px-2 sm:px-4 lg:px-6' : 'max-w-7xl mx-auto px-2 sm:px-4 lg:px-6'
+        } ${
+          displaySettings.scale === 'small'
+            ? 'text-[92%]'
+            : displaySettings.scale === 'large'
+            ? 'text-[108%]'
+            : 'text-[100%]'
+        } py-3 sm:py-4 transition-all duration-150`}
+      >
         {/* View Switcher: Rekon Daerah vs Tabel Anomali Rekon */}
         {activeView === 'rekon_daerah' ? (
           <>
-            {/* Filter & Banner Section (ONLY in Rekon Daerah as requested) */}
+            {/* Filter & Banner Section */}
             <FilterSection
               provinsiList={PROVINSI_LIST}
               selectedProvinsi={selectedProvinsi}
@@ -564,9 +603,10 @@ export default function App() {
               data={currentKabupatenData}
             />
 
-            {/* Main Data Table (Auto fit to screen, no horizontal scroll, sorting on every column) */}
+            {/* Main Data Table with Responsive Scroll & Density */}
             <RekonTable
               data={currentKabupatenData}
+              density={displaySettings.density}
               onOpenDetail={(item) => {
                 setDetailModalKab(item);
                 setSelectedKabupatenId(item.id);
@@ -597,9 +637,10 @@ export default function App() {
             />
           </>
         ) : (
-          /* Tabel Anomali Rekon: Menampilkan seluruh kab/kota yang anomali CV & Rasio di 89 komoditas */
+          /* Tabel Anomali Rekon */
           <AnomaliRekonTable
             database={database}
+            density={displaySettings.density}
             komoditasList={KOMODITAS_LIST}
             provinsi={selectedProvinsi}
             selectedKomoditas={selectedKomoditas}
@@ -615,6 +656,7 @@ export default function App() {
           />
         )}
       </main>
+
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 text-[11px] py-3.5 print:hidden">
@@ -687,6 +729,16 @@ export default function App() {
         selectedKomoditas={selectedKomoditas}
         onQuickLoginAsOwner={() => handleLogin('harga6100@gmail.com', 'Admin Rekonda')}
       />
+
+      {/* Display & Device Adjuster Modal */}
+      <DisplayAdjustModal
+        isOpen={isDisplayAdjustOpen}
+        onClose={() => setIsDisplayAdjustOpen(false)}
+        settings={displaySettings}
+        onUpdateSettings={handleUpdateDisplaySettings}
+        onResetSettings={handleResetDisplaySettings}
+      />
     </div>
   );
 }
+

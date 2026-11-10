@@ -12,7 +12,7 @@ import {
   Check
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { KabupatenRekon, StatusRekon, UserAuth, Komoditas, Provinsi } from '../types/rekonda';
+import { KabupatenRekon, StatusRekon, UserAuth, Komoditas, Provinsi, DisplayDensity } from '../types/rekonda';
 import { formatRupiahNumber, formatRupiahCurrency, formatPercent } from '../utils/formatters';
 
 interface AnomaliItem {
@@ -34,6 +34,7 @@ interface AnomaliRekonTableProps {
   onOpenAuth: () => void;
   onUpdateAnomali: (key: string, kabupatenId: string, status: StatusRekon, catatan: string) => void;
   onOpenDetail: (kab: KabupatenRekon, komoditas: Komoditas) => void;
+  density?: DisplayDensity;
 }
 
 type SortField =
@@ -55,8 +56,10 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
   currentUser,
   onOpenAuth,
   onUpdateAnomali,
-  onOpenDetail
+  onOpenDetail,
+  density = 'normal'
 }) => {
+
   // Filters
   const [selectedKomoditasFilter, setSelectedKomoditasFilter] = useState<string>('all');
   const [selectedKabupatenFilter, setSelectedKabupatenFilter] = useState<string>('all');
@@ -485,12 +488,19 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
           </div>
         </div>
 
+        {/* Mobile Horizontal Scroll Indicator */}
+        <div className="sm:hidden text-[10px] text-slate-500 flex items-center justify-between pb-1 px-1">
+          <span>* Tabel anomali seluruh komoditas</span>
+          <span className="font-medium text-sky-700">Geser ke kanan &rarr;</span>
+        </div>
+
         {/* Table Viewport */}
-        <div className="w-full border border-slate-200 rounded-lg overflow-hidden">
-          <table className="w-full table-fixed text-[11px] leading-tight border-collapse">
+        <div className="w-full overflow-x-auto border border-slate-200 rounded-lg shadow-2xs">
+          <table className={`w-full min-w-[960px] lg:min-w-full table-fixed ${density === 'compact' ? 'text-[10.5px]' : density === 'comfortable' ? 'text-xs' : 'text-[11px]'} leading-tight border-collapse`}>
             <thead>
               <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 select-none text-center">
-                <th className="py-2.5 px-1.5 w-[4%] text-center">No</th>
+                <th className={`${density === 'compact' ? 'py-1.5' : density === 'comfortable' ? 'py-3' : 'py-2.5'} px-1.5 w-[4%] text-center`}>No</th>
+
                 
                 {/* Komoditas / Kualitas Rekon */}
                 <th

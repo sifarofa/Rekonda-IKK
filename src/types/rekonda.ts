@@ -68,3 +68,14 @@ export interface UserAuth {
   name: string | null;
   isOwner: boolean; // true if email === 'harga6100@gmail.com'
 }
+
+export type DisplayDensity = 'compact' | 'normal' | 'comfortable';
+export type DisplayScale = 'small' | 'normal' | 'large';
+export type DisplayWidth = 'contained' | 'full';
+
+export interface DisplaySettings {
+  density: DisplayDensity;
+  scale: DisplayScale;
+  width: DisplayWidth;
+}
+

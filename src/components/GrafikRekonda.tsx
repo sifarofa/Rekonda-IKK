@@ -125,25 +125,25 @@ export const GrafikRekonda: React.FC<GrafikRekondaProps> = ({
       </div>
 
       {/* Main Chart Viewport */}
-      <div className="relative pt-6 pb-1">
+      <div className="relative pt-6 pb-1 overflow-x-auto">
         {/* Hovered Info Tooltip Box */}
         {hoveredKab && (
-          <div className="absolute top-0 right-4 z-20 bg-slate-900 text-white text-xs px-3.5 py-2 rounded-lg shadow-xl flex items-center gap-3 animate-in fade-in duration-150 border border-slate-700">
+          <div className="absolute top-0 left-1 right-1 sm:left-auto sm:right-4 z-20 bg-slate-900 text-white text-[11px] sm:text-xs px-3 py-2 rounded-lg shadow-xl flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 animate-in fade-in duration-150 border border-slate-700">
             <div>
               <span className="font-mono text-rose-300 font-bold">[{hoveredKab.kode}]</span>{' '}
               <strong className="font-bold">{hoveredKab.nama}</strong>
             </div>
-            <div className="border-l border-slate-700 pl-3 font-mono">
+            <div className="border-l border-slate-700 pl-2 sm:pl-3 font-mono">
               <span className="text-slate-400 text-[10px] block">Harga 2027:</span>
-              <strong className="text-sky-300 text-sm">{formatRupiahCurrency(hoveredKab.harga2027)}</strong>
+              <strong className="text-sky-300 text-xs sm:text-sm">{formatRupiahCurrency(hoveredKab.harga2027)}</strong>
             </div>
             {hoveredKab.harga2026 > 0 && (
-              <div className="border-l border-slate-700 pl-3 font-mono">
+              <div className="border-l border-slate-700 pl-2 sm:pl-3 font-mono">
                 <span className="text-slate-400 text-[10px] block">Harga 2026:</span>
                 <span className="text-slate-200">{formatRupiahNumber(hoveredKab.harga2026)}</span>
               </div>
             )}
-            <div className="border-l border-slate-700 pl-3 font-mono">
+            <div className="border-l border-slate-700 pl-2 sm:pl-3 font-mono">
               <span className="text-slate-400 text-[10px] block">Rasio / CV:</span>
               <span
                 className={`font-bold ${
@@ -154,7 +154,7 @@ export const GrafikRekonda: React.FC<GrafikRekondaProps> = ({
               </span>{' '}
               <span className="text-slate-400">· CV {formatPercent(hoveredKab.koefisienVariasi)}%</span>
             </div>
-            <div className="text-[10px] text-slate-400 border-l border-slate-700 pl-3">
+            <div className="text-[10px] text-slate-400 border-l border-slate-700 pl-2 sm:pl-3 hidden sm:block">
               Merek: <span className="text-slate-200">{hoveredKab.namaKualitas || 'Standar'}</span>
             </div>
           </div>
@@ -163,9 +163,10 @@ export const GrafikRekonda: React.FC<GrafikRekondaProps> = ({
         <div className="flex">
           {/* Dynamic Y-Axis Labels */}
           <div
-            className="flex flex-col justify-between items-end pr-2 text-[10px] font-mono text-slate-500 shrink-0 select-none w-20"
+            className="flex flex-col justify-between items-end pr-1.5 sm:pr-2 text-[9px] sm:text-[10px] font-mono text-slate-500 shrink-0 select-none w-14 sm:w-20"
             style={{ height: `${chartHeight}px` }}
           >
+
             {yTicks
               .slice()
               .reverse()
@@ -263,7 +264,7 @@ export const GrafikRekonda: React.FC<GrafikRekondaProps> = ({
         </div>
 
         {/* X-Axis Labels (Kabupaten Codes in exact sorted order) */}
-        <div className="flex ml-20 pr-1 sm:pr-2 justify-between gap-1 sm:gap-2 pt-2 border-t border-slate-200">
+        <div className="flex ml-14 sm:ml-20 pr-1 sm:pr-2 justify-between gap-1 sm:gap-2 pt-2 border-t border-slate-200">
           {data.map((item) => {
             const isSelected = selectedId === item.id;
             const isHovered = hoveredKab?.id === item.id;

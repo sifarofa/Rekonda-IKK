@@ -203,34 +203,35 @@ export const DetailModal: React.FC<DetailModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-5 max-h-[78vh] overflow-y-auto">
-          {/* Quick Summary Pill Bar */}
+          {/* Quick Summary Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg mb-4 text-xs">
-            <div className="flex items-center gap-4">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
               <div>
-                <span className="text-slate-500 block text-[10px]">Harga Rata-Rata (2027 Berjalan):</span>
+                <span className="text-slate-500 block text-[10px]">Harga Rata-Rata:</span>
                 <span className="font-mono font-bold text-slate-900 text-sm">
                   {formatRupiahCurrency(kabupaten.harga2027)}
                 </span>
               </div>
-              <div className="border-l border-slate-200 pl-4">
-                <span className="text-slate-500 block text-[10px]">Koefisien Variasi (Responden):</span>
+              <div className="sm:border-l border-slate-200 sm:pl-4">
+                <span className="text-slate-500 block text-[10px]">Koefisien Variasi:</span>
                 <span className="font-mono font-bold text-slate-900 text-sm">
                   {formatPercent(kabupaten.koefisienVariasi)}%
                 </span>
               </div>
-              <div className="border-l border-slate-200 pl-4">
+              <div className="sm:border-l border-slate-200 sm:pl-4">
                 <span className="text-slate-500 block text-[10px]">Merek Terbanyak:</span>
-                <span className="font-bold text-slate-800 text-xs">
+                <span className="font-bold text-slate-800 text-xs truncate block max-w-[120px]">
                   {kabupaten.namaKualitas || 'Standar'}
                 </span>
               </div>
-              <div className="border-l border-slate-200 pl-4">
+              <div className="sm:border-l border-slate-200 sm:pl-4">
                 <span className="text-slate-500 block text-[10px]">Rasio ke 2026:</span>
                 <span className="font-mono font-bold text-slate-900 text-sm">
                   {formatPercent(kabupaten.rasio)}%
                 </span>
               </div>
             </div>
+
 
             <div className="text-slate-500 text-[11px] font-mono">
               Total {kabupaten.respondents.length} entri responden survei
