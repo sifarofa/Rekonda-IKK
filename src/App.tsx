@@ -10,6 +10,7 @@ import { NotePreviewModal } from './components/NotePreviewModal';
 import { AuthModal } from './components/AuthModal';
 import { UploadModal } from './components/UploadModal';
 import { DisplayAdjustModal } from './components/DisplayAdjustModal';
+import { LoginLandingPage } from './components/LoginLandingPage';
 import { PROVINSI_LIST, KOMODITAS_LIST, INITIAL_KABUPATEN_DATA } from './data/mockData';
 import { KabupatenRekon, RespondenData, Komoditas, Provinsi, UserAuth, StatusRekon, DisplaySettings } from './types/rekonda';
 import { calculateStats, getDominantBrand } from './utils/formatters';
@@ -42,8 +43,21 @@ export default function App() {
       isLoggedIn: false,
       email: null,
       name: null,
-      isOwner: false
+      isOwner: false,
+      role: 'tamu'
     };
+  });
+
+  // Landing Page state (open by default if not logged in, or opened via Menu Login)
+  const [showLandingLogin, setShowLandingLogin] = useState<boolean>(() => {
+    try {
+      const savedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (savedAuth) {
+        const parsed = JSON.parse(savedAuth);
+        if (parsed.isLoggedIn) return false;
+      }
+    } catch {}
+    return true;
   });
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -176,18 +190,74 @@ export default function App() {
       });
   }, []);
 
-  // Save auth state
+  // Auth Login Handlers
+  const handleLoginOwner = (email: string, name: string) => {
+    const authObj: UserAuth = {
+      isLoggedIn: true,
+      email,
+      name: 'Admin Provinsi (BPS Kalbar)',
+      isOwner: true,
+      role: 'pemilik'
+    };
+    setCurrentUser(authObj);
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authObj));
+    } catch {}
+    setShowLandingLogin(false);
+    showToast('Berhasil masuk sebagai Admin Provinsi (BPS Kalbar). Akses penuh aktif.');
+  };
+
+  const handleLoginKabupaten = (kode: string, nama: string) => {
+    const authObj: UserAuth = {
+      isLoggedIn: true,
+      email: `bps${kode}@bps.go.id`,
+      name: `Admin BPS ${nama}`,
+      isOwner: false,
+      role: 'kabupaten',
+      kabupatenKode: kode,
+      kabupatenNama: nama
+    };
+    setCurrentUser(authObj);
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authObj));
+    } catch {}
+    // User requested: "ada login untuk masing2 kabupaten/kota dimana mereka hanya bisa mengakses tabel anomali rekon untuk kab/kota masing2"
+    setActiveView('anomali_rekon');
+    setShowLandingLogin(false);
+    showToast(`Berhasil masuk sebagai Admin BPS ${nama} [${kode}]. Mode Anomali Wilayah aktif.`);
+  };
+
+  const handleEnterAsGuest = () => {
+    const guestAuth: UserAuth = {
+      isLoggedIn: false,
+      email: null,
+      name: 'Tamu (Pratinjau)',
+      isOwner: false,
+      role: 'tamu'
+    };
+    setCurrentUser(guestAuth);
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(guestAuth));
+    } catch {}
+    setShowLandingLogin(false);
+    showToast('Memasuki aplikasi dalam Mode Tamu (Pratinjau Publik).');
+  };
+
   const handleLogin = (email: string, name: string) => {
     const isOwner = email.toLowerCase() === 'harga6100@gmail.com';
     const authObj: UserAuth = {
       isLoggedIn: true,
       email,
       name,
-      isOwner
+      isOwner,
+      role: isOwner ? 'pemilik' : 'tamu'
     };
     setCurrentUser(authObj);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authObj));
-    showToast(isOwner ? 'Berhasil masuk sebagai Pemilik Akun (Akses Penuh).' : `Berhasil masuk sebagai ${name} (Akses Catatan).`);
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authObj));
+    } catch {}
+    setShowLandingLogin(false);
+    showToast(isOwner ? 'Berhasil masuk sebagai Pemilik Akun (Akses Penuh).' : `Berhasil masuk sebagai ${name}.`);
   };
 
   const handleLogout = () => {
@@ -195,11 +265,15 @@ export default function App() {
       isLoggedIn: false,
       email: null,
       name: null,
-      isOwner: false
+      isOwner: false,
+      role: 'tamu'
     };
     setCurrentUser(guestAuth);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    showToast('Anda telah keluar. Mode publik aktif.');
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    } catch {}
+    setShowLandingLogin(true);
+    showToast('Anda telah keluar dari akun.');
   };
 
   // Current Key
@@ -438,7 +512,7 @@ export default function App() {
   // Add / Edit Respondent handlers
   const handleOpenAddRespondent = (defaultTahun?: number, defaultTw?: number) => {
     if (!currentUser.isOwner) {
-      alert('Akses khusus pemilik akun (harga6100@gmail.com).');
+      alert('Akses khusus Admin Provinsi (harga6100@gmail.com).');
       return;
     }
     setRespondentForm({
@@ -451,7 +525,7 @@ export default function App() {
 
   const handleOpenEditRespondent = (item: RespondenData) => {
     if (!currentUser.isOwner) {
-      alert('Akses khusus pemilik akun (harga6100@gmail.com).');
+      alert('Akses khusus Admin Provinsi (harga6100@gmail.com).');
       return;
     }
     setRespondentForm({
@@ -539,6 +613,19 @@ export default function App() {
     (d) => d.koefisienVariasi > 10 || d.rasio > 106 || d.rasio < 95
   ).length;
 
+  // If Landing Login is requested or active
+  if (showLandingLogin) {
+    return (
+      <LoginLandingPage
+        currentUser={currentUser}
+        onLoginOwner={handleLoginOwner}
+        onLoginKabupaten={handleLoginKabupaten}
+        onEnterAsGuest={handleEnterAsGuest}
+        onClose={currentUser.isLoggedIn ? () => setShowLandingLogin(false) : undefined}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans antialiased">
       {/* Toast Notification */}
@@ -556,10 +643,16 @@ export default function App() {
         isRefreshing={isLoading}
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenLandingLogin={() => setShowLandingLogin(true)}
         onOpenUpload={() => setIsUploadModalOpen(true)}
         onOpenDisplayAdjust={() => setIsDisplayAdjustOpen(true)}
         activeView={activeView}
-        onSelectView={(v) => setActiveView(v)}
+        onSelectView={(v) => {
+          if (currentUser.role === 'kabupaten' && v === 'rekon_daerah') {
+            showToast(`Perhatian: Akun Admin Kab/Kota [${currentUser.kabupatenKode}] berfokus pada penyelesaian Tabel Anomali Rekon.`);
+          }
+          setActiveView(v);
+        }}
         anomalyCount={anomalyCount}
       />
 
@@ -714,7 +807,10 @@ export default function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={currentUser}
-        onLogin={handleLogin}
+        onOpenLandingLogin={() => {
+          setIsAuthModalOpen(false);
+          setShowLandingLogin(true);
+        }}
         onLogout={handleLogout}
       />
 

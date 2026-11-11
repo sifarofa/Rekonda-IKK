@@ -142,7 +142,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   // Toggle Verified
   const handleToggleVerify = () => {
     if (!currentUser.isOwner) {
-      alert('Hanya pemilik akun (harga6100@gmail.com) yang dapat mengubah status rekonsiliasi.');
+      alert('Hanya Admin Provinsi (harga6100@gmail.com) yang dapat mengubah status rekonsiliasi.');
       return;
     }
     onUpdateKabupaten({
@@ -394,7 +394,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                             type="button"
                             onClick={() => {
                               if (!currentUser.isOwner) {
-                                alert('Perubahan data responden hanya dapat dilakukan oleh pemilik akun.');
+                                alert('Perubahan data responden hanya dapat dilakukan oleh Admin Provinsi.');
                                 return;
                               }
                               onOpenEditRespondent(item);
@@ -410,7 +410,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                             type="button"
                             onClick={() => {
                               if (!currentUser.isOwner) {
-                                alert('Penghapusan responden hanya dapat dilakukan oleh pemilik akun.');
+                                alert('Penghapusan responden hanya dapat dilakukan oleh Admin Provinsi.');
                                 return;
                               }
                               if (confirm(`Hapus data responden ${item.nama} (${formatRupiahCurrency(item.harga)})?`)) {

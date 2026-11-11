@@ -62,12 +62,18 @@ export interface Provinsi {
   kabupatenList: string[];
 }
 
+export type UserRole = 'pemilik' | 'kabupaten' | 'tamu';
+
 export interface UserAuth {
   isLoggedIn: boolean;
   email: string | null;
   name: string | null;
-  isOwner: boolean; // true if email === 'harga6100@gmail.com'
+  isOwner: boolean; // true if role === 'pemilik' or email === 'harga6100@gmail.com'
+  role: UserRole;
+  kabupatenKode?: string | null; // e.g. '6101', '6106'
+  kabupatenNama?: string | null; // e.g. 'SAMBAS', 'KETAPANG'
 }
+
 
 export type DisplayDensity = 'compact' | 'normal' | 'comfortable';
 export type DisplayScale = 'small' | 'normal' | 'large';

@@ -7,7 +7,11 @@ import {
   ShieldCheck,
   AlertTriangle,
   LayoutDashboard,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Building2,
+  LogIn,
+  LogOut,
+  Lock
 } from 'lucide-react';
 import { UserAuth } from '../types/rekonda';
 
@@ -17,6 +21,7 @@ interface HeaderNavProps {
   isRefreshing?: boolean;
   currentUser: UserAuth;
   onOpenAuth: () => void;
+  onOpenLandingLogin: () => void;
   onOpenUpload: () => void;
   onOpenDisplayAdjust: () => void;
   activeView: 'rekon_daerah' | 'anomali_rekon';
@@ -30,12 +35,24 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   isRefreshing,
   currentUser,
   onOpenAuth,
+  onOpenLandingLogin,
   onOpenUpload,
   onOpenDisplayAdjust,
   activeView,
   onSelectView,
   anomalyCount
 }) => {
+  const isPemilik = currentUser.role === 'pemilik' || currentUser.isOwner;
+  const isKabupaten = currentUser.role === 'kabupaten';
+
+  const handleUploadClick = () => {
+    if (!isPemilik) {
+      alert('Akses Terbatas: Fitur Upload Dokumen & Template hanya diperuntukkan bagi Admin Provinsi (BPS Kalbar). Akun Admin Kab/Kota berfokus pada verifikasi Tabel Anomali Rekon.');
+      return;
+    }
+    onOpenUpload();
+  };
+
   return (
     <header className="bg-slate-900 text-white border-b border-slate-800 shadow-sm print:hidden sticky top-0 z-40">
       <div className="w-full max-w-7xl mx-auto px-2.5 sm:px-4 lg:px-6">
@@ -43,15 +60,31 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
         <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
           {/* Brand */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-rose-600 flex items-center justify-center shadow-md">
+            <button
+              type="button"
+              onClick={onOpenLandingLogin}
+              title="Kembali ke Menu Login / Portal Landing Page"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-rose-600 hover:bg-rose-500 flex items-center justify-center shadow-md transition-colors cursor-pointer"
+            >
               <Database className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            </div>
+            </button>
             <div>
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="font-bold text-base sm:text-lg tracking-tight text-white">REKONDA</span>
+                <button
+                  type="button"
+                  onClick={onOpenLandingLogin}
+                  className="font-bold text-base sm:text-lg tracking-tight text-white hover:text-rose-300 transition-colors cursor-pointer text-left"
+                >
+                  REKONDA
+                </button>
                 <span className="text-[10px] bg-rose-500/20 text-rose-300 font-bold px-1.5 py-0.2 rounded border border-rose-500/30">
                   IKK 2026/2027
                 </span>
+                {isKabupaten && currentUser.kabupatenKode && (
+                  <span className="text-[10px] bg-sky-500/20 text-sky-300 font-bold px-1.5 py-0.2 rounded border border-sky-500/30 hidden md:inline">
+                    Admin: [{currentUser.kabupatenKode}] {currentUser.kabupatenNama}
+                  </span>
+                )}
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium hidden md:block">
                 Rekonsiliasi Data Harga Konsumen Konstruksi (Lintas Tahun)
@@ -106,15 +139,24 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               <span className="hidden md:inline">Tampilan</span>
             </button>
 
-            {/* Upload Dokumen & Template button */}
+            {/* Upload Dokumen & Template button (Admin Provinsi Only) */}
             <button
               type="button"
-              onClick={onOpenUpload}
-              title="Upload Dokumen & Unduh Template (Tabel 7.1 & IKK Responden)"
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-md shadow-xs transition-colors cursor-pointer border bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500"
+              onClick={handleUploadClick}
+              title={
+                isPemilik
+                  ? 'Upload Dokumen & Unduh Template (Tabel 7.1 & IKK Responden)'
+                  : 'Upload Dokumen Khusus Admin Provinsi'
+              }
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-md shadow-xs transition-colors cursor-pointer border ${
+                isPemilik
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
+                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-300'
+              }`}
             >
               <Upload className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Upload & Template</span>
+              <span className="hidden sm:inline">Upload &amp; Template</span>
+              {!isPemilik && <Lock className="w-3 h-3 text-slate-500 ml-0.5" />}
             </button>
 
             {/* Print button */}
@@ -128,37 +170,53 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               <span>Cetak</span>
             </button>
 
-            {/* User Account / Google Login button */}
-            <button
-              type="button"
-              onClick={onOpenAuth}
-              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-md border transition-colors cursor-pointer ${
-                currentUser.isLoggedIn
-                  ? currentUser.isOwner
-                    ? 'bg-rose-950/80 text-rose-200 border-rose-800 hover:bg-rose-900'
-                    : 'bg-sky-950/80 text-sky-200 border-sky-800 hover:bg-sky-900'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-              }`}
-            >
-              {currentUser.isLoggedIn ? (
-                currentUser.isOwner ? (
-                  <>
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="max-w-[70px] sm:max-w-[110px] truncate">Pemilik</span>
-                  </>
-                ) : (
-                  <>
-                    <User className="w-3.5 h-3.5 text-sky-400" />
-                    <span className="max-w-[70px] sm:max-w-[100px] truncate">{currentUser.name || 'User'}</span>
-                  </>
-                )
-              ) : (
-                <>
-                  <User className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="hidden sm:inline">Masuk</span>
-                </>
-              )}
-            </button>
+            {/* Menu Login / Akun Selector */}
+            {currentUser.isLoggedIn ? (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onOpenAuth}
+                  className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-md border transition-colors cursor-pointer ${
+                    isPemilik
+                      ? 'bg-rose-950/80 text-rose-200 border-rose-800 hover:bg-rose-900'
+                      : 'bg-sky-950/80 text-sky-200 border-sky-800 hover:bg-sky-900'
+                  }`}
+                  title="Lihat Detail Akun"
+                >
+                  {isPemilik ? (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="max-w-[70px] sm:max-w-[120px] truncate">Admin Provinsi</span>
+                    </>
+                  ) : (
+                    <>
+                      <Building2 className="w-3.5 h-3.5 text-sky-400" />
+                      <span className="max-w-[70px] sm:max-w-[110px] truncate">
+                        Admin {currentUser.kabupatenNama || currentUser.kabupatenKode}
+                      </span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onOpenLandingLogin}
+                  title="Buka Menu Login / Ganti Peran Wilayah"
+                  className="px-2 py-1.5 text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-md border border-slate-700 transition-colors cursor-pointer"
+                >
+                  Ganti
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenLandingLogin}
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-md border border-rose-500/60 bg-rose-600 hover:bg-rose-500 text-white transition-colors cursor-pointer shadow-xs"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Menu Login</span>
+              </button>
+            )}
           </div>
         </div>
 

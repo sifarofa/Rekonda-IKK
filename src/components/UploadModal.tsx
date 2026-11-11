@@ -234,7 +234,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   // Submit & Apply
   const handleProcessUpload = () => {
     if (!currentUser.isOwner && !onQuickLoginAsOwner) {
-      alert('Akses ditolak: Hanya pemilik akun yang dapat memperbarui data.');
+      alert('Akses ditolak: Hanya Admin Provinsi yang dapat memperbarui data master.');
       return;
     }
     if (!parseResult || parseResult.updatedList.length === 0) {
@@ -283,7 +283,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           <div className="bg-amber-50 border-b border-amber-200 px-5 py-2 flex items-center justify-between gap-2 text-xs text-amber-900 shrink-0">
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>Mode Pengunjung: Anda dapat melihat pratinjau. Masuk sebagai pemilik untuk menyimpan permanen.</span>
+              <span>Mode Terbatas: Anda dapat melihat pratinjau. Masuk sebagai Admin Provinsi untuk menyimpan permanen.</span>
             </div>
             {onQuickLoginAsOwner ? (
               <button
@@ -291,7 +291,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 onClick={onQuickLoginAsOwner}
                 className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold rounded-md shadow-2xs whitespace-nowrap cursor-pointer"
               >
-                Masuk sebagai Pemilik
+                Masuk sebagai Admin Provinsi
               </button>
             ) : (
               <button
