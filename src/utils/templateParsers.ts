@@ -82,21 +82,89 @@ export function parsePrice(val: any): number {
 }
 
 /**
+ * Helper to resolve normalized 4-digit quality code from any template row.
+ * Handles both fixed `[xxxx]` codes and legacy/untagged rows for:
+ * - Seng Plat BJLS 20 -> 1402
+ * - Seng Plat BJLS 30 -> 1404
+ * - Atap Metal Genteng Metal (0.25 mm) -> 5001
+ * - Atap Metal Genteng Metal (0.30 mm) -> 5002
+ * - Atap Metal Atap Spandex (0.30 mm) -> 5003
+ * - Upah Mandor -> 6001
+ */
+export function resolveRowQualCode(row: Record<string, any>): string {
+  const kd = String(row['Kualitas Data'] ?? '').trim();
+  const kr = String(row['Kualitas Rekon'] ?? '').trim();
+  const kqr = String(
+    row['kode kualitas rekon'] ??
+    row['Kode Kualitas 1'] ??
+    row['Kode Kualitas 2'] ??
+    row['Kode Kualitas'] ??
+    row['kode_kualitas_rekon'] ??
+    ''
+  ).trim();
+  const commName = String(row['Nama Komoditas'] ?? row['Komoditas'] ?? '').trim();
+  const qualName = String(row['Nama Kualitas'] ?? row['kualitas rekon'] ?? '').trim();
+
+  const combinedText = `${kd} ${kr} ${kqr} ${commName} ${qualName}`.toLowerCase();
+
+  // Canonical overrides matching official IKK template codes
+  if (combinedText.includes('bjls 20')) return '1402';
+  if (combinedText.includes('bjls 30')) return '1404';
+  if (combinedText.includes('genteng metal') && combinedText.includes('0.25')) return '5001';
+  if (combinedText.includes('genteng metal') && combinedText.includes('0.30')) return '5002';
+  if (combinedText.includes('spandex') && combinedText.includes('0.30')) return '5003';
+  if (combinedText.includes('upah mandor')) return '6001';
+
+  // Extract 4-digit code from IKK Responden ("1402 | ...") or Webentry / Tabel 7.1 ("[1402] ...")
+  for (const field of [kd, kr, kqr]) {
+    if (!field) continue;
+    const match = field.match(/(?:^|\[|\b)(\d{4})(?:\]|\s*\||\b)/);
+    if (match) return match[1];
+  }
+
+  return '';
+}
+
+function stripBomAndNormalizeKeys(rows: any[]): any[] {
+  return rows.map((row) => {
+    const cleanRow: Record<string, any> = {};
+    for (const [k, v] of Object.entries(row)) {
+      const cleanKey = k.replace(/^\uFEFF/, '').trim();
+      cleanRow[cleanKey] = v;
+    }
+    return cleanRow;
+  });
+}
+
+/**
  * Reads an Excel file or CSV and returns an array of objects
  */
 export async function parseFileToRows(file: File | ArrayBuffer | Uint8Array | string): Promise<any[]> {
   let workbook: XLSX.WorkBook;
 
   if (typeof file === 'string') {
-    workbook = XLSX.read(file, { type: 'string' });
+    const cleanStr = file.replace(/^\uFEFF/, '');
+    const firstLine = cleanStr.split(/\r?\n/)[0] || '';
+    const fsOpt = firstLine.includes(';') ? ';' : firstLine.includes('\t') ? '\t' : undefined;
+    workbook = XLSX.read(cleanStr, { type: 'string', ...(fsOpt ? { FS: fsOpt } : {}) });
   } else if (file instanceof ArrayBuffer) {
-    workbook = XLSX.read(file, { type: 'array' });
+    const decoder = new TextDecoder('utf-8');
+    const preview = decoder.decode(new Uint8Array(file.slice(0, 4096))).replace(/^\uFEFF/, '');
+    const firstLine = preview.split(/\r?\n/)[0] || '';
+    // If plain text CSV with semicolons or tabs (and not zip/binary xlsx)
+    const isZipOrOle = new Uint8Array(file.slice(0, 2))[0] === 0x50 || new Uint8Array(file.slice(0, 2))[0] === 0xd0;
+    if (!isZipOrOle && (firstLine.includes(';') || firstLine.includes('\t'))) {
+      const fullText = decoder.decode(new Uint8Array(file)).replace(/^\uFEFF/, '');
+      const fsOpt = firstLine.includes(';') ? ';' : '\t';
+      workbook = XLSX.read(fullText, { type: 'string', FS: fsOpt });
+    } else {
+      workbook = XLSX.read(file, { type: 'array' });
+    }
   } else if (ArrayBuffer.isView(file)) {
-    // Node.js Buffer or Uint8Array
     workbook = XLSX.read(file as any, { type: 'buffer' });
   } else if (file && typeof (file as any).arrayBuffer === 'function') {
     const buffer = await (file as any).arrayBuffer();
-    workbook = XLSX.read(buffer, { type: 'array' });
+    return parseFileToRows(buffer);
   } else {
     workbook = XLSX.read(file as any, { type: 'array' });
   }
@@ -105,39 +173,7 @@ export async function parseFileToRows(file: File | ArrayBuffer | Uint8Array | st
   const worksheet = workbook.Sheets[sheetName];
   const json: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
-  // If SheetJS only returned 1 column because CSV used semicolon or tab
-  if (json.length > 0 && Object.keys(json[0]).length === 1) {
-    const firstKey = Object.keys(json[0])[0];
-    if (firstKey.includes(';') || firstKey.includes('\t')) {
-      const delimiter = firstKey.includes(';') ? ';' : '\t';
-      // Re-parse with custom delimited CSV
-      return parseDelimitedCSV(typeof file === 'string' ? file : await (file as any).text?.() || '', delimiter);
-    }
-  }
-
-  return json;
-}
-
-/**
- * Helper to parse delimited text if SheetJS didn't split columns automatically
- */
-function parseDelimitedCSV(text: string, delimiter: string = ';'): any[] {
-  if (!text) return [];
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) return [];
-
-  const headers = lines[0].split(delimiter).map((h) => h.replace(/^["']|["']$/g, '').trim());
-  const rows: any[] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(delimiter).map((c) => c.replace(/^["']|["']$/g, '').trim());
-    const rowObj: Record<string, any> = {};
-    headers.forEach((h, idx) => {
-      rowObj[h] = cols[idx] !== undefined ? cols[idx] : '';
-    });
-    rows.push(rowObj);
-  }
-  return rows;
+  return stripBomAndNormalizeKeys(json);
 }
 
 /**
@@ -209,14 +245,27 @@ export function processTabel71Upload(
   const groupedRows: Record<string, any[]> = {};
 
   rows.forEach((row) => {
-    // Extract commodity
+    const qualCode = resolveRowQualCode(row);
+    const kqr = String(row['kode kualitas rekon'] || row['kualitas rekon'] || '').trim();
     const comm = String(row['Nama Komoditas'] || row['Komoditas'] || row['komoditas'] || '').trim();
-    if (comm) detectedCommoditiesSet.add(comm);
+    const qual = String(row['Nama Kualitas'] || '').trim();
+    const label = qualCode ? `[${qualCode}] ${comm || qual}` : (kqr || comm);
+    if (label) detectedCommoditiesSet.add(label);
 
-    // Filter commodity if specified
-    if (commodityFilter && commodityFilter !== 'ALL' && comm) {
-      if (!comm.toLowerCase().includes(commodityFilter.toLowerCase()) &&
-          !commodityFilter.toLowerCase().includes(comm.toLowerCase())) {
+    // Filter commodity if specified (supports matching 4-digit kode kualitas rekon or commodity name)
+    if (commodityFilter && commodityFilter !== 'ALL') {
+      const q = commodityFilter.toLowerCase().trim();
+      const filterCodeMatch = q.match(/\[?(\d{4})\]?/);
+      const filterCode = filterCodeMatch ? filterCodeMatch[1] : '';
+
+      const matchesCode = Boolean(filterCode && qualCode && qualCode === filterCode);
+      const matchesName =
+        kqr.toLowerCase().includes(q) ||
+        comm.toLowerCase().includes(q) ||
+        qual.toLowerCase().includes(q) ||
+        (comm && q.includes(comm.toLowerCase()));
+
+      if (!matchesCode && !matchesName) {
         return;
       }
     }
@@ -444,12 +493,26 @@ export function processIKKRespondenUpload(
   const groupedRows: Record<string, any[]> = {};
 
   rows.forEach((row) => {
+    // Lookup from Kualitas Data (Primary as requested) and Kualitas Rekon / Komoditas (Fallback)
+    const qualCode = resolveRowQualCode(row);
+    const kd = String(row['Kualitas Data'] || '').trim();
+    const kr = String(row['Kualitas Rekon'] || '').trim();
     const comm = String(row['Komoditas'] || row['Nama Komoditas'] || '').trim();
-    if (comm) detectedCommoditiesSet.add(comm);
 
-    if (commodityFilter && commodityFilter !== 'ALL' && comm) {
-      if (!comm.toLowerCase().includes(commodityFilter.toLowerCase()) &&
-          !commodityFilter.toLowerCase().includes(comm.toLowerCase())) {
+    if (kd) detectedCommoditiesSet.add(kd);
+    else if (kr) detectedCommoditiesSet.add(kr);
+    else if (comm) detectedCommoditiesSet.add(comm);
+
+    if (commodityFilter && commodityFilter !== 'ALL') {
+      const q = commodityFilter.toLowerCase().trim();
+      const filterCodeMatch = q.match(/\[?(\d{4})\]?/);
+      const filterCode = filterCodeMatch ? filterCodeMatch[1] : '';
+
+      const matchCode = Boolean(filterCode && qualCode && qualCode === filterCode);
+      const matchKD = kd.toLowerCase().includes(q);
+      const matchKR = kr.toLowerCase().includes(q);
+      const matchComm = comm.toLowerCase().includes(q);
+      if (!matchCode && !matchKD && !matchKR && !matchComm) {
         return;
       }
     }
@@ -514,7 +577,7 @@ export function processIKKRespondenUpload(
 
     const oldHarga2026 = kab.harga2026;
     const oldRasio = kab.rasio;
-    const newRasio = newHarga2026 > 0 ? parseFloat(((kab.harga2027 / newHarga2026) * 100).toFixed(2)) : 100;
+    const newRasio = newHarga2026 > 0 ? parseFloat(((kab.harga2027 / newHarga2026) * 100).toFixed(2)) : 0;
 
     // Update target
     kab.hargaTw3_2025 = avgTw3_25;
@@ -560,8 +623,10 @@ export function processIKKRespondenUpload(
 
 /**
  * Process File 3: Database IKK 2026 Webentry
- * Digunakan untuk mengisi HARGA 2026 dari tarikan Webentry lengkap
- * (Kabupaten;Harga 2026;Harga TW III 2025;Harga TW IV 2025;Harga TW I 2026;Harga TW II 2026;Koefisien Variasi;Kode Kualitas 1;...)
+ * Format sesuai dengan database_webentry_2026_f5274433.csv:
+ * Kode Kabupaten/Kota;Nama Kabupaten/Kota;Kode Responden;Nama Responden;Jenis Kuesioner;Nama Komoditas;Nama Kualitas;Nama Merek;kualitas rekon;kode kualitas rekon;Satuan Standar;III-2025;IV-2025;I-2026;II-2026;cv
+ *
+ * Juga mendukung format ringkasan webentry legacy (Kabupaten, Harga 2026, Kode Kualitas 1, dll).
  */
 export function processIKKWebentryUpload(
   rows: any[],
@@ -577,21 +642,64 @@ export function processIKKWebentryUpload(
   const groupedRows: Record<string, any[]> = {};
 
   rows.forEach((row) => {
-    const rawQualCode = String(row['Kode Kualitas 1'] || row['Kode Kualitas'] || '').trim();
-    const commName = String(row['Nama Komoditas'] || row['Komoditas'] || '').trim();
-    const qualDisplay = rawQualCode ? `[${rawQualCode}] ${commName}` : commName;
+    // Extract commodity / quality code from "kode kualitas rekon" (with canonical code normalization)
+    const rawQualCodeField = String(
+      row['kode kualitas rekon'] ??
+      row['Kode Kualitas 1'] ??
+      row['Kode Kualitas'] ??
+      row['kode_kualitas_rekon'] ??
+      ''
+    ).trim();
+
+    const qualCode = resolveRowQualCode(row);
+
+    const commName = String(
+      row['kualitas rekon'] ??
+      row['Nama Komoditas'] ??
+      row['Nama Kualitas'] ??
+      row['Komoditas'] ??
+      ''
+    ).trim();
+
+    const qualDisplay = qualCode ? `[${qualCode}] ${commName || rawQualCodeField}` : commName || rawQualCodeField;
     if (qualDisplay) detectedCommoditiesSet.add(qualDisplay);
 
+    // Apply commodity filter if specified
     if (commodityFilter && commodityFilter !== 'ALL') {
-      const matchFilter =
-        (rawQualCode && rawQualCode.includes(commodityFilter)) ||
-        (commName && commName.toLowerCase().includes(commodityFilter.toLowerCase())) ||
-        (commodityFilter.includes(rawQualCode));
-      if (!matchFilter) return;
+      const q = commodityFilter.trim().toLowerCase();
+      const filterCodeMatch = q.match(/\[?(\d{4})\]?/);
+      const filterCode = filterCodeMatch ? filterCodeMatch[1] : '';
+
+      let isMatch = false;
+      if (filterCode && qualCode && qualCode === filterCode) {
+        isMatch = true;
+      } else if (qualCode && q.includes(qualCode) && qualCode.length >= 4) {
+        isMatch = true;
+      } else if (rawQualCodeField.toLowerCase().includes(q)) {
+        isMatch = true;
+      } else if (commName.toLowerCase().includes(q)) {
+        isMatch = true;
+      }
+
+      if (!isMatch) return;
     }
 
-    const rawKab = String(row['Kabupaten'] || row['Nama Kabupaten'] || row['Kota'] || '').trim();
-    const matched = findMatchingKabupaten(rawKab, rawKab, updatedList);
+    const rawKabCode = String(
+      row['Kode Kabupaten/Kota'] ??
+      row['Kode Kab'] ??
+      row['Kode'] ??
+      ''
+    ).trim();
+
+    const rawKabName = String(
+      row['Nama Kabupaten/Kota'] ??
+      row['Nama Kab'] ??
+      row['Kabupaten'] ??
+      row['Kota'] ??
+      ''
+    ).trim();
+
+    const matched = findMatchingKabupaten(rawKabCode, rawKabName, updatedList);
     if (matched) {
       if (!groupedRows[matched.kode]) groupedRows[matched.kode] = [];
       groupedRows[matched.kode].push(row);
@@ -606,29 +714,49 @@ export function processIKKWebentryUpload(
     if (!kabRows || kabRows.length === 0) return;
 
     affectedKabCount++;
-    const row = kabRows[0];
 
-    const tw3_25 = parsePrice(row['Harga TW III 2025'] ?? row['III-2025'] ?? row['TW3_2025']);
-    const tw4_25 = parsePrice(row['Harga TW IV 2025'] ?? row['IV-2025'] ?? row['TW4_2025']);
-    const tw1_26 = parsePrice(row['Harga TW I 2026'] ?? row['I-2026'] ?? row['TW1_2026']);
-    const tw2_26 = parsePrice(row['Harga TW II 2026'] ?? row['II-2026'] ?? row['TW2_2026']);
+    const tw3_list: number[] = [];
+    const tw4_list: number[] = [];
+    const tw1_list: number[] = [];
+    const tw2_list: number[] = [];
+    const allPrices: number[] = [];
 
-    const validQuarters = [tw3_25, tw4_25, tw1_26, tw2_26].filter((p) => p > 0);
-    const fileHarga2026 = parsePrice(row['Harga 2026'] ?? row['Harga2026'] ?? row['Nilai 2026']);
-    const newHarga2026 = fileHarga2026 > 0
-      ? fileHarga2026
-      : (validQuarters.length > 0
-          ? Math.round(validQuarters.reduce((a, b) => a + b, 0) / validQuarters.length)
-          : kab.harga2026);
+    kabRows.forEach((r) => {
+      // Parse quarter prices (III-2025, IV-2025, I-2026, II-2026)
+      const p3 = parsePrice(r['III-2025'] ?? r['Harga TW III 2025'] ?? r['TW3_2025'] ?? r['tw3_2025']);
+      const p4 = parsePrice(r['IV-2025'] ?? r['Harga TW IV 2025'] ?? r['TW4_2025'] ?? r['tw4_2025']);
+      const p1 = parsePrice(r['I-2026'] ?? r['Harga TW I 2026'] ?? r['TW1_2026'] ?? r['tw1_2026']);
+      const p2 = parsePrice(r['II-2026'] ?? r['Harga TW II 2026'] ?? r['TW2_2026'] ?? r['tw2_2026']);
+      const pDirect = parsePrice(r['Harga 2026'] ?? r['Harga2026'] ?? r['Nilai 2026']);
+
+      if (p3 > 0) { tw3_list.push(p3); allPrices.push(p3); }
+      if (p4 > 0) { tw4_list.push(p4); allPrices.push(p4); }
+      if (p1 > 0) { tw1_list.push(p1); allPrices.push(p1); }
+      if (p2 > 0) { tw2_list.push(p2); allPrices.push(p2); }
+      if (pDirect > 0 && p3 === 0 && p4 === 0 && p1 === 0 && p2 === 0) {
+        allPrices.push(pDirect);
+      }
+    });
+
+    // Quarter averages
+    const avgTw3 = tw3_list.length > 0 ? Math.round(tw3_list.reduce((a, b) => a + b, 0) / tw3_list.length) : kab.hargaTw3_2025;
+    const avgTw4 = tw4_list.length > 0 ? Math.round(tw4_list.reduce((a, b) => a + b, 0) / tw4_list.length) : kab.hargaTw4_2025;
+    const avgTw1 = tw1_list.length > 0 ? Math.round(tw1_list.reduce((a, b) => a + b, 0) / tw1_list.length) : kab.hargaTw1_2026;
+    const avgTw2 = tw2_list.length > 0 ? Math.round(tw2_list.reduce((a, b) => a + b, 0) / tw2_list.length) : kab.hargaTw2_2026;
+
+    const validQuarterAvgs = [avgTw3, avgTw4, avgTw1, avgTw2].filter((p) => p > 0);
+    const newHarga2026 = validQuarterAvgs.length > 0
+      ? Math.round(validQuarterAvgs.reduce((a, b) => a + b, 0) / validQuarterAvgs.length)
+      : (allPrices.length > 0 ? Math.round(allPrices.reduce((a, b) => a + b, 0) / allPrices.length) : 0);
 
     const oldHarga2026 = kab.harga2026;
     const oldRasio = kab.rasio;
-    const newRasio = newHarga2026 > 0 ? parseFloat(((kab.harga2027 / newHarga2026) * 100).toFixed(2)) : 100;
+    const newRasio = newHarga2026 > 0 ? parseFloat(((kab.harga2027 / newHarga2026) * 100).toFixed(2)) : 0;
 
-    kab.hargaTw3_2025 = tw3_25 || newHarga2026;
-    kab.hargaTw4_2025 = tw4_25 || newHarga2026;
-    kab.hargaTw1_2026 = tw1_26 || newHarga2026;
-    kab.hargaTw2_2026 = tw2_26 || newHarga2026;
+    kab.hargaTw3_2025 = avgTw3;
+    kab.hargaTw4_2025 = avgTw4;
+    kab.hargaTw1_2026 = avgTw1;
+    kab.hargaTw2_2026 = avgTw2;
     kab.harga2026 = newHarga2026;
     kab.rasio = newRasio;
 
@@ -636,10 +764,10 @@ export function processIKKWebentryUpload(
     const percentDiff = oldHarga2026 > 0 ? parseFloat(((diff / oldHarga2026) * 100).toFixed(2)) : 0;
 
     const quartersDetail = [
-      tw3_25 > 0 ? `TW3'25: ${tw3_25.toLocaleString('id-ID')}` : '',
-      tw4_25 > 0 ? `TW4'25: ${tw4_25.toLocaleString('id-ID')}` : '',
-      tw1_26 > 0 ? `TW1'26: ${tw1_26.toLocaleString('id-ID')}` : '',
-      tw2_26 > 0 ? `TW2'26: ${tw2_26.toLocaleString('id-ID')}` : ''
+      avgTw3 > 0 ? `TW3'25: ${avgTw3.toLocaleString('id-ID')}` : '',
+      avgTw4 > 0 ? `TW4'25: ${avgTw4.toLocaleString('id-ID')}` : '',
+      avgTw1 > 0 ? `TW1'26: ${avgTw1.toLocaleString('id-ID')}` : '',
+      avgTw2 > 0 ? `TW2'26: ${avgTw2.toLocaleString('id-ID')}` : ''
     ].filter(Boolean).join(' | ');
 
     comparison.push({
@@ -651,7 +779,7 @@ export function processIKKWebentryUpload(
       percentDiff,
       oldRasio,
       newRasio,
-      quartersDetail: quartersDetail || `Webentry 2026: ${newHarga2026.toLocaleString('id-ID')}`,
+      quartersDetail: quartersDetail || `Webentry 2026: ${newHarga2026 > 0 ? newHarga2026.toLocaleString('id-ID') : '-'}`,
       respondentCount: kabRows.length
     });
   });
@@ -674,20 +802,36 @@ export function detectTemplateType(rows: any[]): 'tabel71' | 'rekonda_responden'
   const first = rows[0];
   const keys = Object.keys(first).map((k) => k.toLowerCase());
 
-  if (keys.some((k) => k.includes('kode kualitas 1') || k.includes('kode boq') || k.includes('harga 2026'))) {
+  // Webentry: checks for 'kode kualitas rekon', 'satuan standar', 'jenis kuesioner', 'kode kualitas 1', 'harga 2026', 'kode boq'
+  if (keys.some((k) =>
+    k.includes('kode kualitas rekon') ||
+    k.includes('satuan standar') ||
+    k.includes('jenis kuesioner') ||
+    k.includes('kode kualitas 1') ||
+    k.includes('kode boq') ||
+    k.includes('harga 2026')
+  )) {
     return 'rekonda_webentry';
   }
-  if (keys.some((k) => k.includes('responden') && (k.includes('kota') || k.includes('kualitas rekon') || k.includes('flag ganti')))) {
+
+  // Responden 2026: checks for 'kualitas data', 'flag ganti', or 'responden' with 'kota'
+  if (keys.some((k) =>
+    k.includes('kualitas data') ||
+    k.includes('flag ganti') ||
+    (k.includes('responden') && (k.includes('kota') || k.includes('kualitas rekon')))
+  )) {
     return 'rekonda_responden';
   }
+
   return 'tabel71';
 }
 
 /**
  * Dual Template 2026 Merge:
  * Sesuai aturan:
- * - Untuk kode kualitas yang ADA di IKK REKONDA responden 2026, gunakan harga dari database tersebut.
- * - Untuk kode kualitas yang TIDAK ADA di IKK REKONDA responden 2026, gunakan harga dari database IKK 2026 webentry.
+ * - Lookup utama di Database IKK REKONDA responden 2026 (berdasarkan Kualitas Data / Kode Kualitas Rekon).
+ * - Jika kualitas atau kabupaten/kota tidak ditemukan di IKK REKONDA responden 2026, cari di Database IKK 2026 Webentry.
+ * - Jika tidak ada di kedua database, tetap 0 (ditampilkan sebagai strip '-').
  */
 export function processDual2026Merge(
   rekonnasRows: any[],
@@ -695,16 +839,106 @@ export function processDual2026Merge(
   currentList: KabupatenRekon[],
   commodityCode: string
 ): ParseResult {
-  // Check if commodityCode is present in rekonnasRows
-  const hasInRekonnas = rekonnasRows.some((r) => {
-    const raw = String(r['Kualitas Rekon'] || r['Komoditas'] || '').trim();
-    return raw.includes(commodityCode);
+  const codeMatch = commodityCode.match(/\[?(\d{4})\]?/);
+  const targetCode = codeMatch ? codeMatch[1] : commodityCode.trim();
+
+  // Start with a fresh baseline where 2026 values are checked cleanly per kabupaten
+  const resetBaseline: KabupatenRekon[] = currentList.map((k) => ({
+    ...k,
+    respondents: [...k.respondents],
+    harga2026: 0,
+    hargaTw3_2025: 0,
+    hargaTw4_2025: 0,
+    hargaTw1_2026: 0,
+    hargaTw2_2026: 0
+  }));
+
+  const rekonResult = processIKKRespondenUpload(rekonnasRows, resetBaseline, targetCode || commodityCode);
+  const webResult = processIKKWebentryUpload(webentryRows, resetBaseline, targetCode || commodityCode);
+
+  const rekonCompMap = new Map(rekonResult.comparison.map((c) => [c.kode, c]));
+  const webCompMap = new Map(webResult.comparison.map((c) => [c.kode, c]));
+
+  const mergedComparison: ComparisonItem[] = [];
+  let affectedKabCount = 0;
+
+  const updatedList = currentList.map((origKab, idx) => {
+    const fromRekon = rekonResult.updatedList[idx];
+    const fromWeb = webResult.updatedList[idx];
+
+    const hasRekon = fromRekon && fromRekon.harga2026 > 0;
+    const hasWeb = fromWeb && fromWeb.harga2026 > 0;
+
+    if (hasRekon) {
+      affectedKabCount++;
+      const comp = rekonCompMap.get(origKab.kode);
+      if (comp) {
+        const diff = fromRekon.harga2026 - origKab.harga2026;
+        const percentDiff = origKab.harga2026 > 0 ? parseFloat(((diff / origKab.harga2026) * 100).toFixed(2)) : 0;
+        mergedComparison.push({
+          ...comp,
+          oldValue: origKab.harga2026,
+          oldRasio: origKab.rasio,
+          diff,
+          percentDiff,
+          quartersDetail: `[IKK Rekonda] ${comp.quartersDetail}`
+        });
+      }
+      return {
+        ...origKab,
+        harga2026: fromRekon.harga2026,
+        hargaTw3_2025: fromRekon.hargaTw3_2025,
+        hargaTw4_2025: fromRekon.hargaTw4_2025,
+        hargaTw1_2026: fromRekon.hargaTw1_2026,
+        hargaTw2_2026: fromRekon.hargaTw2_2026,
+        rasio: fromRekon.rasio
+      };
+    } else if (hasWeb) {
+      affectedKabCount++;
+      const comp = webCompMap.get(origKab.kode);
+      if (comp) {
+        const diff = fromWeb.harga2026 - origKab.harga2026;
+        const percentDiff = origKab.harga2026 > 0 ? parseFloat(((diff / origKab.harga2026) * 100).toFixed(2)) : 0;
+        mergedComparison.push({
+          ...comp,
+          oldValue: origKab.harga2026,
+          oldRasio: origKab.rasio,
+          diff,
+          percentDiff,
+          quartersDetail: `[Webentry] ${comp.quartersDetail}`
+        });
+      }
+      return {
+        ...origKab,
+        harga2026: fromWeb.harga2026,
+        hargaTw3_2025: fromWeb.hargaTw3_2025,
+        hargaTw4_2025: fromWeb.hargaTw4_2025,
+        hargaTw1_2026: fromWeb.hargaTw1_2026,
+        hargaTw2_2026: fromWeb.hargaTw2_2026,
+        rasio: fromWeb.rasio
+      };
+    }
+
+    // Not found in either IKK Responden or Webentry -> set 0 ('-')
+    return {
+      ...origKab,
+      harga2026: 0,
+      hargaTw3_2025: 0,
+      hargaTw4_2025: 0,
+      hargaTw1_2026: 0,
+      hargaTw2_2026: 0,
+      rasio: 0
+    };
   });
 
-  if (hasInRekonnas) {
-    return processIKKRespondenUpload(rekonnasRows, currentList, commodityCode);
-  } else {
-    return processIKKWebentryUpload(webentryRows, currentList, commodityCode);
-  }
+  return {
+    updatedList,
+    comparison: mergedComparison,
+    totalRows: rekonnasRows.length + webentryRows.length,
+    affectedKabCount,
+    detectedCommodities: Array.from(new Set([...rekonResult.detectedCommodities, ...webResult.detectedCommodities])),
+    rawRows: rekonnasRows
+  };
 }
+
 

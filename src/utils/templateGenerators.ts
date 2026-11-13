@@ -182,8 +182,8 @@ export function downloadTemplateIKKResponden(
 
 /**
  * Download Template 3: Database IKK 2026 Webentry
- * Digunakan untuk mengisi data tahun sebelumnya dari tarikan Webentry lengkap
- * (Kabupaten;Harga 2026;Harga TW III 2025;Harga TW IV 2025;Harga TW I 2026;Harga TW II 2026;Koefisien Variasi;Kode Kualitas 1;...)
+ * Format sesuai dengan database_webentry_2026_f5274433.csv:
+ * Kode Kabupaten/Kota;Nama Kabupaten/Kota;Kode Responden;Nama Responden;Jenis Kuesioner;Nama Komoditas;Nama Kualitas;Nama Merek;kualitas rekon;kode kualitas rekon;Satuan Standar;III-2025;IV-2025;I-2026;II-2026;cv
  */
 export function downloadTemplateIKKWebentry(
   currentKabupaten: KabupatenRekon[],
@@ -199,31 +199,55 @@ export function downloadTemplateIKKWebentry(
     const tw1_26 = kab.hargaTw1_2026 > 0 ? kab.hargaTw1_2026 : baseP;
     const tw2_26 = kab.hargaTw2_2026 > 0 ? kab.hargaTw2_2026 : Math.round(baseP * 1.02);
 
-    rows.push({
-      'Kabupaten': `[${kab.kode}] ${kab.nama}`,
-      'Harga 2026': baseP,
-      'Harga TW III 2025': tw3_25,
-      'Harga TW IV 2025': tw4_25,
-      'Harga TW I 2026': tw1_26,
-      'Harga TW II 2026': tw2_26,
-      'Koefisien Variasi': kab.koefisienVariasi || 0,
-      'Kode Kualitas 1': komoditas.kode,
-      'Kode Kualitas 2': `[${komoditas.kode}] ${komoditas.nama}`,
-      'Kode BOQ': `BOQ_${komoditas.kode}`,
-      'Nama Komoditas': komoditas.nama,
-      'Nama Kualitas': kab.namaKualitas || komoditas.nama,
-      'Nama Kualitas/Merk (Alternatif)': kab.namaKualitas || 'Standar',
-      'Catatan': '',
-      'Harga 2025': Math.round(baseP * 0.95),
-      'Kenaikan': parseFloat((((baseP - Math.round(baseP * 0.95)) / Math.round(baseP * 0.95)) * 100).toFixed(2))
-    });
+    if (kab.respondents && kab.respondents.length > 0) {
+      kab.respondents.forEach((res, idx) => {
+        rows.push({
+          'Kode Kabupaten/Kota': kab.kode,
+          'Nama Kabupaten/Kota': kab.nama,
+          'Kode Responden': `${kab.kode}${String(idx + 1).padStart(3, '0')}`,
+          'Nama Responden': res.nama,
+          'Jenis Kuesioner': komoditas.kategori || 'Material Natural dan Produk Lanjutannya',
+          'Nama Komoditas': komoditas.nama,
+          'Nama Kualitas': kab.namaKualitas || komoditas.nama,
+          'Nama Merek': res.merk || '',
+          'kualitas rekon': `${komoditas.nama} ${kab.namaKualitas || 'Standar'}`,
+          'kode kualitas rekon': `[${komoditas.kode}] ${komoditas.nama}`,
+          'Satuan Standar': komoditas.satuan,
+          'III-2025': tw3_25,
+          'IV-2025': tw4_25,
+          'I-2026': tw1_26,
+          'II-2026': tw2_26,
+          'cv': kab.koefisienVariasi || 0
+        });
+      });
+    } else {
+      // Default sample rows per kabupaten
+      rows.push({
+        'Kode Kabupaten/Kota': kab.kode,
+        'Nama Kabupaten/Kota': kab.nama,
+        'Kode Responden': `${kab.kode}001`,
+        'Nama Responden': `TOKO BANGUNAN ${kab.nama} 1`,
+        'Jenis Kuesioner': komoditas.kategori || 'Material Natural dan Produk Lanjutannya',
+        'Nama Komoditas': komoditas.nama,
+        'Nama Kualitas': kab.namaKualitas || komoditas.nama,
+        'Nama Merek': '',
+        'kualitas rekon': `${komoditas.nama} ${kab.namaKualitas || 'Standar'}`,
+        'kode kualitas rekon': `[${komoditas.kode}] ${komoditas.nama}`,
+        'Satuan Standar': komoditas.satuan,
+        'III-2025': tw3_25,
+        'IV-2025': tw4_25,
+        'I-2026': tw1_26,
+        'II-2026': tw2_26,
+        'cv': kab.koefisienVariasi || 0
+      });
+    }
   });
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'IKK_Webentry_2026');
+  XLSX.utils.book_append_sheet(wb, ws, 'database_webentry_2026');
 
-  const filename = `Template_IKK_2026_Webentry_${komoditas.kode}_${new Date().toISOString().slice(0, 10)}`;
+  const filename = `Template_Database_Webentry_2026_${komoditas.kode}_${new Date().toISOString().slice(0, 10)}`;
   if (format === 'csv') {
     XLSX.writeFile(wb, `${filename}.csv`, { bookType: 'csv' });
   } else {

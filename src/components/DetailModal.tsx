@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { KabupatenRekon, RespondenData, Komoditas, UserAuth } from '../types/rekonda';
 import { formatRupiahNumber, formatRupiahCurrency, formatPercent } from '../utils/formatters';
+import responden2026LookupRaw from '../data/responden2026Lookup.json';
 
 interface DetailModalProps {
   isOpen: boolean;
@@ -30,6 +31,72 @@ interface DetailModalProps {
 }
 
 type RespondentSortField = 'tahun' | 'triwulan' | 'nama' | 'merk' | 'harga';
+
+interface LookupEntry {
+  nama: string;
+  avgHarga: number;
+  twPrices?: Record<string, number>;
+  source?: string;
+}
+
+const responden2026Lookup = responden2026LookupRaw as Record<string, LookupEntry>;
+
+const normalizeStr = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const getPrevYearRespondentData = (
+  kabKode: string,
+  qualKode: string,
+  resp: RespondenData
+): { harga: number | null; sourceText: string | null } => {
+  const cleanKab = (kabKode || '').trim();
+  const cleanQual = (qualKode || '').trim();
+  const normName = normalizeStr(resp.nama);
+  const normId = normalizeStr(resp.id);
+
+  // Key combinations
+  const keyByName = `${cleanKab}_${cleanQual}_${normName}`;
+  const keyById = `${cleanKab}_${cleanQual}_${normId}`;
+
+  let match: LookupEntry | undefined = responden2026Lookup[keyByName] || responden2026Lookup[keyById];
+
+  // Fuzzy match if direct match not found
+  if (!match && normName.length >= 4) {
+    const prefix = `${cleanKab}_${cleanQual}_`;
+    for (const k in responden2026Lookup) {
+      if (k.startsWith(prefix)) {
+        const sub = k.slice(prefix.length);
+        if (sub.includes(normName) || normName.includes(sub)) {
+          match = responden2026Lookup[k];
+          break;
+        }
+      }
+    }
+  }
+
+  if (!match) {
+    return { harga: null, sourceText: null };
+  }
+
+  // Target quarter mapping
+  let targetQuarterKey = '';
+  if (resp.tahun === 2027 && resp.triwulan === 1) targetQuarterKey = '2026_1';
+  else if (resp.tahun === 2027 && resp.triwulan === 2) targetQuarterKey = '2026_2';
+  else if (resp.tahun === 2026 && resp.triwulan === 3) targetQuarterKey = '2025_3';
+  else if (resp.tahun === 2026 && resp.triwulan === 4) targetQuarterKey = '2025_4';
+  else targetQuarterKey = `2026_${resp.triwulan}`;
+
+  let prevPrice: number | null = null;
+  if (match.twPrices && match.twPrices[targetQuarterKey] && match.twPrices[targetQuarterKey] > 0) {
+    prevPrice = match.twPrices[targetQuarterKey];
+  } else if (match.avgHarga && match.avgHarga > 0) {
+    prevPrice = match.avgHarga;
+  }
+
+  return {
+    harga: prevPrice,
+    sourceText: (match.source === 'rekonnas' || match.source === 'IKK Rekonda') ? 'IKK Rekonda' : 'IKK Webentry'
+  };
+};
 
 export const DetailModal: React.FC<DetailModalProps> = ({
   isOpen,
@@ -139,16 +206,28 @@ export const DetailModal: React.FC<DetailModalProps> = ({
     setTimeout(() => setSavedFeedback(false), 2000);
   };
 
-  // Toggle Verified
+  const isRekonSelesai = kabupaten.statusRekon === 'rekon_selesai' || Boolean(kabupaten.isVerified);
+
+  // Toggle Verified: 2 states: 'rekon_selesai' and 'belum_rekon'
   const handleToggleVerify = () => {
-    if (!currentUser.isOwner) {
-      alert('Hanya Admin Provinsi (harga6100@gmail.com) yang dapat mengubah status rekonsiliasi.');
+    if (!currentUser.isLoggedIn) {
+      onOpenAuth();
       return;
     }
+    const canToggle =
+      currentUser.isOwner ||
+      (currentUser.role === 'kabupaten' && currentUser.kabupatenKode === kabupaten.kode);
+
+    if (!canToggle) {
+      alert('Perubahan status rekon hanya dapat dilakukan oleh Admin Provinsi atau Admin Kab/Kota wilayah terkait.');
+      return;
+    }
+
+    const nextState = !isRekonSelesai;
     onUpdateKabupaten({
       ...kabupaten,
-      isVerified: !kabupaten.isVerified,
-      statusRekon: !kabupaten.isVerified ? 'rekon_selesai' : 'konfirmasi_lapangan'
+      isVerified: nextState,
+      statusRekon: nextState ? 'rekon_selesai' : 'belum_rekon'
     });
   };
 
@@ -167,16 +246,16 @@ export const DetailModal: React.FC<DetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      {/* Modal Dialog Box matching Screenshot 2 */}
+      {/* Modal Dialog Box */}
       <div className="relative bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
         <div className="bg-slate-900 text-white px-6 py-4 flex items-start justify-between border-b border-slate-800">
           <div>
             <h3 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
               <span>Detail Rekonda</span>
-              {kabupaten.isVerified && (
+              {isRekonSelesai && (
                 <span className="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Terverifikasi
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Rekon Selesai
                 </span>
               )}
             </h3>
@@ -207,9 +286,21 @@ export const DetailModal: React.FC<DetailModalProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg mb-4 text-xs">
             <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
               <div>
-                <span className="text-slate-500 block text-[10px]">Harga Rata-Rata:</span>
+                <span className="text-slate-500 block text-[10px]">Harga 2027 (Berjalan):</span>
                 <span className="font-mono font-bold text-slate-900 text-sm">
                   {formatRupiahCurrency(kabupaten.harga2027)}
+                </span>
+              </div>
+              <div className="sm:border-l border-slate-200 sm:pl-4">
+                <span className="text-slate-500 block text-[10px]">Harga 2026 (Thn Lalu):</span>
+                <span className="font-mono font-bold text-slate-900 text-sm">
+                  {kabupaten.harga2026 > 0 ? formatRupiahCurrency(kabupaten.harga2026) : '-'}
+                </span>
+              </div>
+              <div className="sm:border-l border-slate-200 sm:pl-4">
+                <span className="text-slate-500 block text-[10px]">Rasio ke 2026:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm">
+                  {kabupaten.harga2026 > 0 ? `${formatPercent(kabupaten.rasio)}%` : '-'}
                 </span>
               </div>
               <div className="sm:border-l border-slate-200 sm:pl-4">
@@ -224,14 +315,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                   {kabupaten.namaKualitas || 'Standar'}
                 </span>
               </div>
-              <div className="sm:border-l border-slate-200 sm:pl-4">
-                <span className="text-slate-500 block text-[10px]">Rasio ke 2026:</span>
-                <span className="font-mono font-bold text-slate-900 text-sm">
-                  {formatPercent(kabupaten.rasio)}%
-                </span>
-              </div>
             </div>
-
 
             <div className="text-slate-500 text-[11px] font-mono">
               Total {kabupaten.respondents.length} entri responden survei
@@ -308,7 +392,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
             </div>
           </div>
 
-          {/* Table Responden (Matching Screenshot 2 + Sorting on every column!) */}
+          {/* Table Responden (Side-by-side with 2026 Respondent Data) */}
           <div className="overflow-x-auto border border-slate-200 rounded-lg mb-4">
             <table className="w-full text-xs text-left border-collapse">
               <thead>
@@ -316,7 +400,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                   {/* Sortable: Tahun */}
                   <th
                     onClick={() => handleSort('tahun')}
-                    className="py-2.5 px-3 text-center whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors group"
+                    className="py-2.5 px-2.5 text-center whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors group"
                   >
                     <span>Tahun</span> {renderSortIcon('tahun')}
                   </th>
@@ -324,7 +408,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                   {/* Sortable: Triwulan */}
                   <th
                     onClick={() => handleSort('triwulan')}
-                    className="py-2.5 px-3 text-center whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors group"
+                    className="py-2.5 px-2.5 text-center whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors group"
                   >
                     <span>Triwulan</span> {renderSortIcon('triwulan')}
                   </th>
@@ -332,7 +416,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                   {/* Sortable: Responden */}
                   <th
                     onClick={() => handleSort('nama')}
-                    className="py-2.5 px-4 text-left whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors group"
+                    className="py-2.5 px-3 text-left whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors group"
                   >
                     <span>Responden</span> {renderSortIcon('nama')}
                   </th>
@@ -340,17 +424,27 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                   {/* Sortable: Merk */}
                   <th
                     onClick={() => handleSort('merk')}
-                    className="py-2.5 px-4 text-left whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors group"
+                    className="py-2.5 px-3 text-left whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors group"
                   >
                     <span>Merk</span> {renderSortIcon('merk')}
                   </th>
 
-                  {/* Sortable: Harga */}
+                  {/* Sortable: Harga 2027 */}
                   <th
                     onClick={() => handleSort('harga')}
-                    className="py-2.5 px-4 text-right whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors group"
+                    className="py-2.5 px-3 text-right whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors group"
                   >
-                    <span>Harga (Rp)</span> {renderSortIcon('harga')}
+                    <span>Harga '27 (Rp)</span> {renderSortIcon('harga')}
+                  </th>
+
+                  {/* Harga 2026 (Tahun Lalu) */}
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap bg-slate-50">
+                    <span>Harga '26 (Rp)</span>
+                  </th>
+
+                  {/* Rasio */}
+                  <th className="py-2.5 px-2.5 text-right whitespace-nowrap">
+                    <span>Rasio</span>
                   </th>
 
                   {/* Aksi */}
@@ -360,72 +454,104 @@ export const DetailModal: React.FC<DetailModalProps> = ({
               <tbody className="divide-y divide-slate-200">
                 {currentRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-slate-500 font-medium">
+                    <td colSpan={8} className="py-6 text-center text-slate-500 font-medium">
                       Belum ada data responden untuk filter ini. Silakan klik tombol tambah di bawah.
                     </td>
                   </tr>
                 ) : (
-                  currentRows.map((item, idx) => (
-                    <tr
-                      key={item.id}
-                      className={`hover:bg-slate-50 transition-colors ${
-                        idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
-                      }`}
-                    >
-                      <td className="py-2 px-3 text-center font-mono font-medium text-slate-700">
-                        {item.tahun}
-                      </td>
-                      <td className="py-2 px-3 text-center font-mono font-medium text-slate-700">
-                        TW {item.triwulan}
-                      </td>
-                      <td className="py-2 px-4 font-semibold text-slate-900">
-                        {item.nama}
-                      </td>
-                      <td className="py-2 px-4 text-slate-600">
-                        {item.merk || '-'}
-                      </td>
-                      <td className="py-2 px-4 text-right font-mono font-bold text-slate-900 tabular-nums">
-                        {formatRupiahNumber(item.harga)}
-                      </td>
-                      <td className="py-2 px-3 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {/* Yellow Edit Pencil button from screenshot */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!currentUser.isOwner) {
-                                alert('Perubahan data responden hanya dapat dilakukan oleh Admin Provinsi.');
-                                return;
-                              }
-                              onOpenEditRespondent(item);
-                            }}
-                            title="Edit Data Responden"
-                            className="w-6 h-6 rounded bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-amber-950 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </button>
+                  currentRows.map((item, idx) => {
+                    const prevData = getPrevYearRespondentData(kabupaten.kode, komoditas.kode, item);
+                    const prevHarga = prevData.harga;
+                    const respRasio = prevHarga && prevHarga > 0 ? (item.harga / prevHarga) * 100 : null;
 
-                          {/* Red Delete Trash button from screenshot */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!currentUser.isOwner) {
-                                alert('Penghapusan responden hanya dapat dilakukan oleh Admin Provinsi.');
-                                return;
-                              }
-                              if (confirm(`Hapus data responden ${item.nama} (${formatRupiahCurrency(item.harga)})?`)) {
-                                onDeleteRespondent(item.id);
-                              }
-                            }}
-                            title="Hapus Data Responden"
-                            className="w-6 h-6 rounded bg-red-600 hover:bg-red-700 active:bg-red-800 text-white flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`hover:bg-slate-50 transition-colors ${
+                          idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                        }`}
+                      >
+                        <td className="py-2 px-2.5 text-center font-mono font-medium text-slate-700">
+                          {item.tahun}
+                        </td>
+                        <td className="py-2 px-2.5 text-center font-mono font-medium text-slate-700">
+                          TW {item.triwulan}
+                        </td>
+                        <td className="py-2 px-3 font-semibold text-slate-900">
+                          {item.nama}
+                        </td>
+                        <td className="py-2 px-3 text-slate-600">
+                          {item.merk || '-'}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-slate-900 tabular-nums">
+                          {formatRupiahNumber(item.harga)}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-medium text-slate-700 tabular-nums bg-slate-50/60">
+                          {prevHarga !== null ? (
+                            <span title={prevData.sourceText ? `Sumber: ${prevData.sourceText}` : undefined}>
+                              {formatRupiahNumber(prevHarga)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-mono" title="Responden tidak ditemukan di database 2026">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-2.5 text-right font-mono tabular-nums">
+                          {respRasio !== null ? (
+                            <span
+                              className={`font-semibold ${
+                                respRasio > 120
+                                  ? 'text-rose-700'
+                                  : respRasio < 80
+                                  ? 'text-emerald-700'
+                                  : 'text-slate-700'
+                              }`}
+                            >
+                              {formatPercent(respRasio)}%
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-mono">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {/* Yellow Edit Pencil button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!currentUser.isOwner) {
+                                  alert('Perubahan data responden hanya dapat dilakukan oleh Admin Provinsi.');
+                                  return;
+                                }
+                                onOpenEditRespondent(item);
+                              }}
+                              title="Edit Data Responden"
+                              className="w-6 h-6 rounded bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-amber-950 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+
+                            {/* Red Delete Trash button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!currentUser.isOwner) {
+                                  alert('Penghapusan responden hanya dapat dilakukan oleh Admin Provinsi.');
+                                  return;
+                                }
+                                if (confirm(`Hapus data responden ${item.nama} (${formatRupiahCurrency(item.harga)})?`)) {
+                                  onDeleteRespondent(item.id);
+                                }
+                              }}
+                              title="Hapus Data Responden"
+                              className="w-6 h-6 rounded bg-red-600 hover:bg-red-700 active:bg-red-800 text-white flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -553,13 +679,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({
               type="button"
               onClick={handleToggleVerify}
               className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg shadow-2xs border transition-colors cursor-pointer ${
-                kabupaten.isVerified
+                isRekonSelesai
                   ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
                   : 'bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-amber-950 border-amber-500/50'
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{kabupaten.isVerified ? 'Telah Direkon (Batal)' : 'Tandai Rekon Selesai'}</span>
+              <span>{isRekonSelesai ? 'Telah Direkon (Batal)' : 'Tandai Rekon Selesai'}</span>
             </button>
 
             {/* Center/Right: Blue + Tambah buttons for specific Quarters */}

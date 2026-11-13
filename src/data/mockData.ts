@@ -22,11 +22,7 @@ export const PROVINSI_LIST: Provinsi[] = [
       '6171', // KOTA PONTIANAK
       '6172'  // KOTA SINGKAWANG
     ]
-  },
-  { kode: '35', nama: 'JAWA TIMUR', kabupatenList: ['3501', '3502', '3503', '3578'] },
-  { kode: '32', nama: 'JAWA BARAT', kabupatenList: ['3201', '3202', '3273'] },
-  { kode: '12', nama: 'SUMATERA UTARA', kabupatenList: ['1201', '1271'] },
-  { kode: '73', nama: 'SULAWESI SELATAN', kabupatenList: ['7301', '7371'] },
+  }
 ];
 
 export const KOMODITAS_LIST: Komoditas[] = (komoditasRaw as Komoditas[]).sort((a, b) => {

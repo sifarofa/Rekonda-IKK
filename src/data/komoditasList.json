@@ -21,7 +21,7 @@
     "kategori": "Material Natural dan Produk Lanjutannya"
   },
   {
-    "rawKode": "[0202] Pasir Pasir Beton / Cor ",
+    "rawKode": "[0202] Pasir Pasir Beton / Cor",
     "kode": "0202",
     "nama": "Pasir Pasir Beton / Cor",
     "satuan": "m3",
@@ -56,7 +56,7 @@
     "kategori": "Material Natural dan Produk Lanjutannya"
   },
   {
-    "rawKode": "[0501] Batako Batako Berlubang ",
+    "rawKode": "[0501] Batako Batako Berlubang",
     "kode": "0501",
     "nama": "Batako Batako Berlubang",
     "satuan": "m3",
@@ -154,28 +154,7 @@
     "kategori": "Material Pabrikan"
   },
   {
-    "rawKode": "Atap Metal Genteng Metal (Tebal 0.25 mm)",
-    "kode": "1201",
-    "nama": "Atap Metal Genteng Metal (Tebal 0.25 mm)",
-    "satuan": "lembar",
-    "kategori": "Material Pabrikan"
-  },
-  {
-    "rawKode": "Atap Metal Genteng Metal (Tebal 0.30 mm)",
-    "kode": "1202",
-    "nama": "Atap Metal Genteng Metal (Tebal 0.30 mm)",
-    "satuan": "lembar",
-    "kategori": "Material Pabrikan"
-  },
-  {
-    "rawKode": "Atap Metal Atap Spandex (Tebal 0.30 mm)",
-    "kode": "1203",
-    "nama": "Atap Metal Atap Spandex (Tebal 0.30 mm)",
-    "satuan": "lembar",
-    "kategori": "Material Pabrikan"
-  },
-  {
-    "rawKode": "[1301] Kloset Kloset Duduk Standar ",
+    "rawKode": "[1301] Kloset Kloset Duduk Standar",
     "kode": "1301",
     "nama": "Kloset Kloset Duduk Standar",
     "satuan": "buah",
@@ -189,6 +168,13 @@
     "kategori": "Material Pabrikan"
   },
   {
+    "rawKode": "[1402] Seng Plat Seng Plat BJLS 20; L = 40",
+    "kode": "1402",
+    "nama": "Seng Plat Seng Plat BJLS 20; L = 40",
+    "satuan": "m",
+    "kategori": "Material Pabrikan"
+  },
+  {
     "rawKode": "[1403] Seng Plat Seng Plat BJLS 28 (Tebal 0,28 mm); L = 90",
     "kode": "1403",
     "nama": "Seng Plat Seng Plat BJLS 28 (Tebal 0,28 mm); L = 90",
@@ -196,15 +182,8 @@
     "kategori": "Material Pabrikan"
   },
   {
-    "rawKode": "[1404] Seng Plat Seng Plat BJLS 20; L = 40",
+    "rawKode": "[1404] Seng Plat Seng Plat BJLS 30 (Tebal 0,30 mm); L = 90",
     "kode": "1404",
-    "nama": "Seng Plat Seng Plat BJLS 20; L = 40",
-    "satuan": "m",
-    "kategori": "Material Pabrikan"
-  },
-  {
-    "rawKode": "Seng Plat Seng Plat BJLS 30 (Tebal 0,30 mm); L = 90",
-    "kode": "1405",
     "nama": "Seng Plat Seng Plat BJLS 30 (Tebal 0,30 mm); L = 90",
     "satuan": "m",
     "kategori": "Material Pabrikan"
@@ -448,13 +427,6 @@
     "kategori": "Material Pabrikan"
   },
   {
-    "rawKode": "Upah Mandor Upah Mandor",
-    "kode": "4201",
-    "nama": "Upah Mandor Upah Mandor",
-    "satuan": "O-H",
-    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
-  },
-  {
     "rawKode": "[4301] Upah Kepala Tukang Upah Kepala Tukang",
     "kode": "4301",
     "nama": "Upah Kepala Tukang Upah Kepala Tukang",
@@ -488,6 +460,27 @@
     "nama": "Upah Pembantu Tukang Upah Pembantu Tukang",
     "satuan": "O-H",
     "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
+  },
+  {
+    "rawKode": "[5001] Atap Metal Genteng Metal (Tebal 0.25 mm)",
+    "kode": "5001",
+    "nama": "Atap Metal Genteng Metal (Tebal 0.25 mm)",
+    "satuan": "lembar",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[5002] Atap Metal Genteng Metal (Tebal 0.30 mm)",
+    "kode": "5002",
+    "nama": "Atap Metal Genteng Metal (Tebal 0.30 mm)",
+    "satuan": "lembar",
+    "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[5003] Atap Metal Atap Spandex (Tebal 0.30 mm)",
+    "kode": "5003",
+    "nama": "Atap Metal Atap Spandex (Tebal 0.30 mm)",
+    "satuan": "lembar",
+    "kategori": "Material Pabrikan"
   },
   {
     "rawKode": "[5101] Excavator Tenaga Mesin (Lebih Kecil Dari) 80 HP",
@@ -621,5 +614,12 @@
     "nama": "Granit Lantai Granit Uk. 60 x 60 cm (putih polos)",
     "satuan": "dus",
     "kategori": "Material Pabrikan"
+  },
+  {
+    "rawKode": "[6001] Upah Mandor Upah Mandor",
+    "kode": "6001",
+    "nama": "Upah Mandor Upah Mandor",
+    "satuan": "O-H",
+    "kategori": "Sewa Alat Berat dan Upah Jasa Konstruksi"
   }
 ]

@@ -371,7 +371,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
             ) : (
               currentRows.map((row, idx) => {
                 const isSelected = selectedId === row.id;
-                const isHighCV = row.koefisienVariasi > 10;
+                const isHighCV = row.koefisienVariasi > 20;
                 const hasNote = Boolean(row.catatan && row.catatan.trim().length > 0);
 
                 return (
@@ -453,33 +453,37 @@ export const RekonTable: React.FC<RekonTableProps> = ({
 
                     {/* 9. Harga 2026 (Tahun Lalu) */}
                     <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono text-slate-600 tabular-nums`}>
-                      {formatRupiahNumber(row.harga2026)}
+                      {row.harga2026 > 0 ? formatRupiahNumber(row.harga2026) : '-'}
                     </td>
 
                     {/* 10. Rasio */}
                     <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono tabular-nums`}>
-                      <span
-                        className={`font-bold ${
-                          row.rasio > 106
-                            ? 'text-rose-700'
-                            : row.rasio < 95
-                            ? 'text-emerald-700'
-                            : 'text-slate-800'
-                        }`}
-                      >
-                        {formatPercent(row.rasio)}%
-                      </span>
+                      {row.harga2026 > 0 ? (
+                        <span
+                          className={`font-bold ${
+                            row.rasio > 120
+                              ? 'text-rose-700'
+                              : row.rasio < 80
+                              ? 'text-emerald-700'
+                              : 'text-slate-800'
+                          }`}
+                        >
+                          {formatPercent(row.rasio)}%
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-mono" title="Data 2026 tidak dicacah">-</span>
+                      )}
                     </td>
 
-                    {/* 11. Catatan */}
+                    {/* 11. Catatan (Terintegrasi dari Detail Rekonda) */}
                     <td className={`${rowPaddingY} ${rowPaddingX} text-center`}>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onOpenNote(row);
+                          onOpenDetail(row);
                         }}
-                        title={row.catatan || 'Klik untuk menulis / mengedit catatan'}
+                        title={row.catatan ? `Catatan: ${row.catatan} (Klik untuk lihat/edit di Detail Rekonda)` : 'Belum ada catatan (Klik untuk buka Detail Rekonda)'}
                         className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all cursor-pointer ${
                           hasNote
                             ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-2xs'

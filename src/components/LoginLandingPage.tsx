@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { KABUPATEN_KALBAR_LIST, PEMILIK_EMAIL, PEMILIK_NAME } from '../data/kabupatenList';
 import { UserAuth } from '../types/rekonda';
+import { validateKabupatenAdminLogin } from '../utils/userAdminStorage';
 
 interface LoginLandingPageProps {
   onLoginOwner: (email: string, name: string) => void;
@@ -49,21 +50,20 @@ export const LoginLandingPage: React.FC<LoginLandingPageProps> = ({
       return;
     }
 
-    const expectedPass = `rekonda${found.kode}`;
-    const cleanPass = kabPasswordInput.trim().toLowerCase();
-
-    if (
-      cleanPass &&
-      cleanPass !== expectedPass &&
-      cleanPass !== 'rekonda2026' &&
-      cleanPass !== 'rekonda2027' &&
-      cleanPass !== 'bpskalbar'
-    ) {
-      setKabError(`Kata sandi tidak sesuai untuk Admin ${found.nama}.`);
+    if (!kabPasswordInput.trim()) {
+      setKabError(`Kata sandi wajib dimasukkan untuk membuka aplikasi Admin ${found.nama}!`);
       return;
     }
 
-    onLoginKabupaten(found.kode, found.nama);
+    // Validate against registered user admin database
+    const validation = validateKabupatenAdminLogin(selectedKabKode, kabPasswordInput);
+    if (!validation.success) {
+      setKabError(validation.error || `Autentikasi gagal untuk Admin ${found.nama}.`);
+      return;
+    }
+
+    const admin = validation.admin!;
+    onLoginKabupaten(admin.kabupatenKode, admin.kabupatenNama);
     if (onClose) onClose();
   };
 
@@ -75,6 +75,18 @@ export const LoginLandingPage: React.FC<LoginLandingPageProps> = ({
 
     if (email !== PEMILIK_EMAIL) {
       setOwnerError(`Akun Admin Provinsi khusus untuk ${PEMILIK_EMAIL}`);
+      return;
+    }
+
+    const cleanPass = ownerPasswordInput.trim().toLowerCase();
+    if (!cleanPass) {
+      setOwnerError('Kata sandi wajib dimasukkan untuk membuka aplikasi sebagai Admin Provinsi!');
+      return;
+    }
+
+    const validOwnerPasses = ['admin6100', 'harga6100', 'bpskalbar', 'bpskalbar2026', 'rekonda2026', 'rekonda2027', 'adminprovinsi'];
+    if (!validOwnerPasses.includes(cleanPass)) {
+      setOwnerError('Kata sandi Admin Provinsi tidak sesuai.');
       return;
     }
 

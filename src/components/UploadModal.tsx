@@ -79,13 +79,23 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     filterComm: string = selectedCommodityFilter
   ) => {
     try {
+      // Auto-scope to selectedKomoditas if user uploaded a full multi-commodity CSV and filterComm is 'ALL'
+      const distinctCodes = new Set(
+        rows
+          .map((r) => String(r['kode kualitas rekon'] || r['Kualitas Data'] || r['Kualitas Rekon'] || '').trim())
+          .filter(Boolean)
+      );
+      const effectiveFilter = (filterComm === 'ALL' && distinctCodes.size > 1)
+        ? selectedKomoditas.kode
+        : filterComm;
+
       if (tab === 'tabel71') {
-        const result = processTabel71Upload(rows, currentData, filterComm);
+        const result = processTabel71Upload(rows, currentData, effectiveFilter);
         setParseResult(result);
         if (result.affectedKabCount === 0) {
-          setParseError('Tidak ditemukan kode kabupaten/kota yang cocok. Pastikan berkas memuat kolom Kode Kabupaten (6101-6172).');
+          setParseError('Tidak ditemukan data kabupaten/kota yang cocok untuk kualitas ini. Pastikan berkas memuat kolom Kode Kabupaten (6101-6172) dan kode kualitas rekon.');
         } else {
-          setSuccessInfo(`Berhasil memproses ${result.totalRows.toLocaleString('id-ID')} baris data. Menemukan ${result.affectedKabCount} kabupaten/kota untuk diperbarui ke kolom Harga 2027.`);
+          setSuccessInfo(`Berhasil memproses ${result.totalRows.toLocaleString('id-ID')} baris data ([${selectedKomoditas.kode}]). Menemukan ${result.affectedKabCount} kabupaten/kota untuk diperbarui ke kolom Harga 2027.`);
           setParseError('');
         }
       } else {
@@ -94,16 +104,16 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
         let result: ParseResult;
         if (subSource === 'webentry' || (subSource === 'auto_merge' && detected === 'rekonda_webentry')) {
-          result = processIKKWebentryUpload(rows, currentData, filterComm);
+          result = processIKKWebentryUpload(rows, currentData, effectiveFilter);
         } else {
-          result = processIKKRespondenUpload(rows, currentData, filterComm);
+          result = processIKKRespondenUpload(rows, currentData, effectiveFilter);
         }
 
         setParseResult(result);
         if (result.affectedKabCount === 0) {
-          setParseError('Tidak ditemukan wilayah yang cocok dalam berkas. Pastikan kolom memuat nama atau kode kabupaten.');
+          setParseError('Tidak ditemukan wilayah/kualitas yang cocok dalam berkas. Pastikan kolom memuat nama atau kode kabupaten dan kode kualitas.');
         } else {
-          setSuccessInfo(`Berhasil memproses data tahun sebelumnya (${result.affectedKabCount} kabupaten/kota). Diperbarui ke kolom Harga 2026.`);
+          setSuccessInfo(`Berhasil memproses data tahun sebelumnya (${result.affectedKabCount} kabupaten/kota) untuk [${selectedKomoditas.kode}]. Diperbarui ke kolom Harga 2026.`);
           setParseError('');
         }
       }
@@ -179,35 +189,35 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     try {
       if (type === 'tabel71') {
         setActiveTab('tabel71');
-        setFileName('database_tabel_7.1.csv (Tahun Berjalan 2026/2027)');
+        setFileName(`database_tabel_7.1.csv ([${selectedKomoditas.kode}] Tahun Berjalan 2026/2027)`);
         const res = await fetch('/assets/aistudio/database_tabel_7.1_0a44d253.csv');
         const text = await res.text();
         const rows = await parseFileToRows(text);
-        runParser(rows, 'tabel71', 'rekonnas', selectedCommodityFilter);
+        runParser(rows, 'tabel71', 'rekonnas', selectedKomoditas.kode);
       } else if (type === 'rekonnas') {
         setActiveTab('rekonda26');
         setSource2026('rekonnas');
-        setFileName('IKK_REKONDA_responden_2026.csv (Rekonnas Final)');
+        setFileName(`IKK_REKONDA_responden_2026.csv ([${selectedKomoditas.kode}] Rekonnas Final)`);
         const res = await fetch('/assets/aistudio/IKK_REKONDA_responden_2026_3d99b638.csv');
         const text = await res.text();
         const rows = await parseFileToRows(text);
-        runParser(rows, 'rekonda26', 'rekonnas', selectedCommodityFilter);
+        runParser(rows, 'rekonda26', 'rekonnas', selectedKomoditas.kode);
       } else if (type === 'webentry') {
         setActiveTab('rekonda26');
         setSource2026('webentry');
-        setFileName('database_IKK_2026_webentry.csv (Webentry Lengkap)');
-        const res = await fetch('/assets/aistudio/database_IKK_2026_webentry.csv');
+        setFileName(`database_webentry_2026.csv ([${selectedKomoditas.kode}] Webentry Lengkap)`);
+        const res = await fetch('/assets/aistudio/database_webentry_2026_f5274433.csv');
         const text = await res.text();
         const rows = await parseFileToRows(text);
-        runParser(rows, 'rekonda26', 'webentry', selectedCommodityFilter);
+        runParser(rows, 'rekonda26', 'webentry', selectedKomoditas.kode);
       } else if (type === 'auto_merge') {
-        // Dual Merge Rule: Rekonnas where present, Webentry fallback
+        // Dual Merge Rule: IKK Rekonda Responden where present, Database Webentry fallback
         setActiveTab('rekonda26');
         setSource2026('auto_merge');
-        setFileName('Sinkronisasi Gabungan: Rekonnas + Fallback Webentry');
+        setFileName(`Sinkronisasi Gabungan ([${selectedKomoditas.kode}]): IKK Responden + Fallback Webentry`);
         const [resRekon, resWeb] = await Promise.all([
           fetch('/assets/aistudio/IKK_REKONDA_responden_2026_3d99b638.csv'),
-          fetch('/assets/aistudio/database_IKK_2026_webentry.csv')
+          fetch('/assets/aistudio/database_webentry_2026_f5274433.csv')
         ]);
         const textRekon = await resRekon.text();
         const textWeb = await resWeb.text();
@@ -221,7 +231,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           selectedKomoditas.kode
         );
         setParseResult(mergedResult);
-        setSuccessInfo(`Sinkronisasi Ganda Berhasil: Menggunakan Rekonnas final untuk kualitas yang tersedia dan Webentry untuk kualitas pelengkap.`);
+        setSuccessInfo(`Sinkronisasi Ganda Berhasil untuk [${selectedKomoditas.kode}]: Menggunakan IKK Rekonda Responden untuk data yang tersedia dan Database Webentry sebagai fallback.`);
       }
     } catch (err: any) {
       setParseError(`Gagal memuat data: ${err.message}`);

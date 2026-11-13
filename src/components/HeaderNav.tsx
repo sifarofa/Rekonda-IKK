@@ -11,7 +11,9 @@ import {
   Building2,
   LogIn,
   LogOut,
-  Lock
+  Lock,
+  Menu,
+  Users
 } from 'lucide-react';
 import { UserAuth } from '../types/rekonda';
 
@@ -24,6 +26,8 @@ interface HeaderNavProps {
   onOpenLandingLogin: () => void;
   onOpenUpload: () => void;
   onOpenDisplayAdjust: () => void;
+  onOpenUserManagement?: () => void;
+  onToggleMobileSidebar?: () => void;
   activeView: 'rekon_daerah' | 'anomali_rekon';
   onSelectView: (view: 'rekon_daerah' | 'anomali_rekon') => void;
   anomalyCount: number;
@@ -38,6 +42,8 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onOpenLandingLogin,
   onOpenUpload,
   onOpenDisplayAdjust,
+  onOpenUserManagement,
+  onToggleMobileSidebar,
   activeView,
   onSelectView,
   anomalyCount
@@ -54,12 +60,23 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   };
 
   return (
-    <header className="bg-slate-900 text-white border-b border-slate-800 shadow-sm print:hidden sticky top-0 z-40">
+    <header className="bg-slate-900 text-white border-b border-slate-800 shadow-sm print:hidden sticky top-0 z-30">
       <div className="w-full max-w-7xl mx-auto px-2.5 sm:px-4 lg:px-6">
         {/* Main Header Bar */}
         <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
-          {/* Brand */}
+          {/* Brand & Mobile Hamburger */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {onToggleMobileSidebar && (
+              <button
+                type="button"
+                onClick={onToggleMobileSidebar}
+                title="Buka Menu Navigasi"
+                className="lg:hidden w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition-colors cursor-pointer border border-slate-700"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onOpenLandingLogin}
@@ -128,6 +145,19 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
 
           {/* Right Action Items */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* User Admin button */}
+            {onOpenUserManagement && (
+              <button
+                type="button"
+                onClick={onOpenUserManagement}
+                title="Kelola & Tambah User Admin 14 Kab/Kota"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-sky-300 bg-slate-800 hover:bg-slate-700 hover:text-white rounded-md border border-slate-700 transition-colors cursor-pointer shadow-2xs"
+              >
+                <Users className="w-3.5 h-3.5 text-sky-400" />
+                <span className="hidden xl:inline">User Admin</span>
+              </button>
+            )}
+
             {/* Display Adjuster Button */}
             <button
               type="button"

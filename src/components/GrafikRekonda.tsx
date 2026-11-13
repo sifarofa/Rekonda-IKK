@@ -147,7 +147,11 @@ export const GrafikRekonda: React.FC<GrafikRekondaProps> = ({
               <span className="text-slate-400 text-[10px] block">Rasio / CV:</span>
               <span
                 className={`font-bold ${
-                  hoveredKab.rasio > 106 ? 'text-rose-400' : hoveredKab.rasio < 95 ? 'text-emerald-400' : 'text-slate-300'
+                  hoveredKab.harga2026 > 0 && hoveredKab.rasio > 120
+                    ? 'text-rose-400'
+                    : hoveredKab.harga2026 > 0 && hoveredKab.rasio < 80
+                    ? 'text-emerald-400'
+                    : 'text-slate-300'
                 }`}
               >
                 {formatPercent(hoveredKab.rasio)}%

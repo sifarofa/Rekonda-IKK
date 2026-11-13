@@ -11,6 +11,8 @@ import { AuthModal } from './components/AuthModal';
 import { UploadModal } from './components/UploadModal';
 import { DisplayAdjustModal } from './components/DisplayAdjustModal';
 import { LoginLandingPage } from './components/LoginLandingPage';
+import { Sidebar } from './components/Sidebar';
+import { UserManagementModal } from './components/UserManagementModal';
 import { PROVINSI_LIST, KOMODITAS_LIST, INITIAL_KABUPATEN_DATA } from './data/mockData';
 import { KabupatenRekon, RespondenData, Komoditas, Provinsi, UserAuth, StatusRekon, DisplaySettings } from './types/rekonda';
 import { calculateStats, getDominantBrand } from './utils/formatters';
@@ -21,7 +23,7 @@ import {
 } from './utils/excelExport';
 import { CheckCircle2 } from 'lucide-react';
 
-const LOCAL_STORAGE_KEY = 'rekonda_state_2026_2027_v3';
+const LOCAL_STORAGE_KEY = 'rekonda_state_2026_2027_v6';
 const AUTH_STORAGE_KEY = 'rekonda_auth_user_v2';
 
 export default function App() {
@@ -63,6 +65,8 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
   const [isDisplayAdjustOpen, setIsDisplayAdjustOpen] = useState<boolean>(false);
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState<boolean>(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // Device & Display Settings (Persisted in localStorage)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(() => {
@@ -95,7 +99,7 @@ export default function App() {
   const [komoditasIndex, setKomoditasIndex] = useState<number>(0);
   const selectedKomoditas = KOMODITAS_LIST[komoditasIndex] || KOMODITAS_LIST[0];
 
-  // Helper to ensure default template notes are blank
+  // Helper to ensure default template notes are blank, prices are cleaned, and status is 2-state
   const sanitizeCatatan = (db: Record<string, KabupatenRekon[]>): Record<string, KabupatenRekon[]> => {
     const cleaned: Record<string, KabupatenRekon[]> = {};
     for (const [key, list] of Object.entries(db)) {
@@ -109,7 +113,37 @@ export default function App() {
             c.includes('terjustifikasi faktor') ||
             c.includes('Harga stabil') ||
             c.includes('Perubahan harga signifikan');
-          return isAuto ? { ...item, catatan: '' } : item;
+
+          // Clean mock 100000 price
+          const isMock100k = item.harga2026 === 100000;
+          const cleanHarga2026 = isMock100k ? 0 : item.harga2026 || 0;
+          const cleanRasio = cleanHarga2026 > 0
+            ? (item.rasio > 0 ? item.rasio : parseFloat(((item.harga2027 / cleanHarga2026) * 100).toFixed(2)))
+            : 0;
+
+          // Default status is strictly 'belum_rekon' for all kab/kota and all commodities unless explicitly marked 'rekon_selesai'
+          const normalizedStatus: StatusRekon = item.statusRekon === 'rekon_selesai'
+            ? 'rekon_selesai'
+            : 'belum_rekon';
+
+          const fallbackItem = INITIAL_KABUPATEN_DATA[key]?.find((k) => k.kode === item.kode);
+          const respondents = (item.respondents && item.respondents.length > 0)
+            ? item.respondents
+            : (fallbackItem?.respondents || []);
+
+          return {
+            ...item,
+            harga2026: cleanHarga2026,
+            hargaTw3_2025: isMock100k ? 0 : item.hargaTw3_2025 || 0,
+            hargaTw4_2025: isMock100k ? 0 : item.hargaTw4_2025 || 0,
+            hargaTw1_2026: isMock100k ? 0 : item.hargaTw1_2026 || 0,
+            hargaTw2_2026: isMock100k ? 0 : item.hargaTw2_2026 || 0,
+            rasio: cleanRasio,
+            statusRekon: normalizedStatus,
+            isVerified: normalizedStatus === 'rekon_selesai',
+            catatan: isAuto ? '' : c,
+            respondents: respondents
+          };
         });
       }
     }
@@ -172,7 +206,13 @@ export default function App() {
         if (res.success && res.data && Object.keys(res.data).length >= 50) {
           const sample = res.data['61_1902'] || res.data['61_0102'];
           const k6106 = sample?.find((k: any) => k.kode === '6106');
-          if (k6106 && k6106.nama.toUpperCase().includes('KETAPANG')) {
+          const hasCorrectedCodes =
+            Boolean(res.data['61_1402']) &&
+            Boolean(res.data['61_5001']) &&
+            Boolean(res.data['61_6001']) &&
+            !res.data['61_1201'] &&
+            !res.data['61_4201'];
+          if (k6106 && k6106.nama.toUpperCase().includes('KETAPANG') && hasCorrectedCodes) {
             setDatabase(sanitizeCatatan(res.data));
             return;
           }
@@ -362,9 +402,9 @@ export default function App() {
     // Dominant Brand (Mode)
     const newDominantBrand = getDominantBrand(res, kab.namaKualitas || 'Standar');
 
-    // Rasio: (Harga 2027 / Harga 2026) * 100
+    // Rasio: (Harga 2027 / Harga 2026) * 100 (0 jika 2026 tidak dicacah / 0)
     const newRasio =
-      kab.harga2026 > 0 ? parseFloat(((newHarga2027 / kab.harga2026) * 100).toFixed(2)) : 100;
+      kab.harga2026 > 0 ? parseFloat(((newHarga2027 / kab.harga2026) * 100).toFixed(2)) : 0;
 
     return {
       ...kab,
@@ -476,7 +516,9 @@ export default function App() {
         metric.hargaTw4_2025 = item.hargaTw4_2025;
         metric.hargaTw1_2026 = item.hargaTw1_2026;
         metric.hargaTw2_2026 = item.hargaTw2_2026;
-        metric.rasio = item.harga2026 > 0 ? parseFloat(((metric.harga2027 / item.harga2026) * 100).toFixed(2)) : 100;
+        metric.rasio = (item.harga2026 > 0 && metric.harga2027 > 0)
+          ? parseFloat(((metric.harga2027 / item.harga2026) * 100).toFixed(2))
+          : 0;
       }
       return metric;
     });
@@ -595,13 +637,13 @@ export default function App() {
   };
 
   const handleExportSeluruhKualitas = () => {
-    exportSeluruhKualitasToExcel(selectedProvinsi, KOMODITAS_LIST, currentKabupatenData);
-    showToast('Seluruh kualitas berhasil diekspor ke Excel (.xlsx).');
+    exportSeluruhKualitasToExcel(selectedProvinsi, KOMODITAS_LIST, database);
+    showToast('Seluruh data harga dari 89 kualitas/komoditas berhasil diekspor ke Excel (.xlsx).');
   };
 
   const handleExportSeluruhResponden = () => {
-    exportSeluruhRespondenToExcel(selectedProvinsi, selectedKomoditas, currentKabupatenData);
-    showToast('Seluruh data responden berhasil diekspor ke Excel (.xlsx).');
+    exportSeluruhRespondenToExcel(selectedProvinsi, KOMODITAS_LIST, database);
+    showToast('Seluruh data responden dari 89 kualitas/komoditas berhasil diekspor ke Excel (.xlsx).');
   };
 
   // Sync active detail modal
@@ -610,7 +652,7 @@ export default function App() {
     : null;
 
   const anomalyCount = currentKabupatenData.filter(
-    (d) => d.koefisienVariasi > 10 || d.rasio > 106 || d.rasio < 95
+    (d) => d.koefisienVariasi > 20 || (d.harga2026 > 0 && (d.rasio > 120 || d.rasio < 80))
   ).length;
 
   // If Landing Login is requested or active
@@ -636,38 +678,68 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Header */}
-      <HeaderNav
-        onRefresh={handleTampilkan}
-        onPrint={handlePrint}
-        isRefreshing={isLoading}
-        currentUser={currentUser}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        onOpenLandingLogin={() => setShowLandingLogin(true)}
-        onOpenUpload={() => setIsUploadModalOpen(true)}
-        onOpenDisplayAdjust={() => setIsDisplayAdjustOpen(true)}
+      {/* Fixed Uncollapsed Sidebar (Desktop: always visible, Mobile: toggled drawer) */}
+      <Sidebar
         activeView={activeView}
         onSelectView={(v) => {
           if (currentUser.role === 'kabupaten' && v === 'rekon_daerah') {
             showToast(`Perhatian: Akun Admin Kab/Kota [${currentUser.kabupatenKode}] berfokus pada penyelesaian Tabel Anomali Rekon.`);
           }
           setActiveView(v);
+          setIsMobileSidebarOpen(false);
         }}
         anomalyCount={anomalyCount}
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenLandingLogin={() => setShowLandingLogin(true)}
+        onOpenUpload={() => setIsUploadModalOpen(true)}
+        onOpenDisplayAdjust={() => setIsDisplayAdjustOpen(true)}
+        onOpenUserManagement={() => setIsUserManagementOpen(true)}
+        onDownloadSeluruhKualitas={handleExportSeluruhKualitas}
+        onDownloadSeluruhResponden={handleExportSeluruhResponden}
+        onLogout={handleLogout}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
-      {/* Main Container with responsive scaling and width adjust */}
-      <main
-        className={`flex-1 w-full ${
-          displaySettings.width === 'full' ? 'max-w-none px-2 sm:px-4 lg:px-6' : 'max-w-7xl mx-auto px-2 sm:px-4 lg:px-6'
-        } ${
-          displaySettings.scale === 'small'
-            ? 'text-[92%]'
-            : displaySettings.scale === 'large'
-            ? 'text-[108%]'
-            : 'text-[100%]'
-        } py-3 sm:py-4 transition-all duration-150`}
-      >
+      {/* Main Content Layout with desktop left padding for fixed sidebar */}
+      <div className="lg:pl-64 flex flex-col flex-1 min-h-screen">
+        {/* Top Header - Mobile only, desktop is hidden because all controls are in fixed Sidebar */}
+        <div className="lg:hidden">
+          <HeaderNav
+            onRefresh={handleTampilkan}
+            onPrint={handlePrint}
+            isRefreshing={isLoading}
+            currentUser={currentUser}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onOpenLandingLogin={() => setShowLandingLogin(true)}
+            onOpenUpload={() => setIsUploadModalOpen(true)}
+            onOpenDisplayAdjust={() => setIsDisplayAdjustOpen(true)}
+            onOpenUserManagement={() => setIsUserManagementOpen(true)}
+            onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
+            activeView={activeView}
+            onSelectView={(v) => {
+              if (currentUser.role === 'kabupaten' && v === 'rekon_daerah') {
+                showToast(`Perhatian: Akun Admin Kab/Kota [${currentUser.kabupatenKode}] berfokus pada penyelesaian Tabel Anomali Rekon.`);
+              }
+              setActiveView(v);
+            }}
+            anomalyCount={anomalyCount}
+          />
+        </div>
+
+        {/* Main Container with responsive scaling and width adjust */}
+        <main
+          className={`flex-1 w-full ${
+            displaySettings.width === 'full' ? 'max-w-none px-2 sm:px-4 lg:px-6' : 'max-w-7xl mx-auto px-2 sm:px-4 lg:px-6'
+          } ${
+            displaySettings.scale === 'small'
+              ? 'text-[92%]'
+              : displaySettings.scale === 'large'
+              ? 'text-[108%]'
+              : 'text-[100%]'
+          } py-3 sm:py-4 transition-all duration-150`}
+        >
         {/* View Switcher: Rekon Daerah vs Tabel Anomali Rekon */}
         {activeView === 'rekon_daerah' ? (
           <>
@@ -764,6 +836,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      </div>
 
       {/* Detail Rekonda Modal (Matching Screenshot 2 + Sorting on respondents) */}
       {activeDetailKab && (
@@ -833,6 +906,14 @@ export default function App() {
         settings={displaySettings}
         onUpdateSettings={handleUpdateDisplaySettings}
         onResetSettings={handleResetDisplaySettings}
+      />
+
+      {/* User Management Modal (Tambah & Kelola Admin Kab/Kota) */}
+      <UserManagementModal
+        isOpen={isUserManagementOpen}
+        onClose={() => setIsUserManagementOpen(false)}
+        onSuccessToast={showToast}
+        currentUser={currentUser}
       />
     </div>
   );

@@ -57,7 +57,9 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
   const minPrice = validPrices2027.length > 0 ? Math.min(...validPrices2027) : 0;
   const maxPrice = validPrices2027.length > 0 ? Math.max(...validPrices2027) : 0;
   const verifiedCount = data.filter((d) => d.statusRekon === 'rekon_selesai' || d.isVerified).length;
-  const anomalyCount = data.filter((d) => d.koefisienVariasi > 10 || d.rasio > 106 || d.rasio < 95).length;
+  const anomalyCount = data.filter(
+    (d) => d.koefisienVariasi > 20 || (d.harga2026 > 0 && (d.rasio > 120 || d.rasio < 80))
+  ).length;
 
   return (
     <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden mb-5 w-full">

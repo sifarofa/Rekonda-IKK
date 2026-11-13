@@ -32,7 +32,7 @@ interface AnomaliItem {
   kabupaten: KabupatenRekon;
   isCVAnomaly: boolean;
   isRasioAnomaly: boolean;
-  anomalyType: 'Ganda (CV & Rasio)' | 'CV Tinggi (> 10%)' | 'Rasio Ekstrem (> 106% / < 95%)';
+  anomalyType: 'Ganda (CV & Rasio)' | 'CV Tinggi (> 20%)' | 'Rasio Ekstrem (< 80% / > 120%)';
 }
 
 interface AnomaliRekonTableProps {
@@ -118,17 +118,16 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
       const kabList = database[dbKey] || [];
 
       kabList.forEach((kab) => {
-        const isCV = kab.koefisienVariasi > 10;
-        const isRasio = kab.rasio > 106 || (kab.rasio < 95 && kab.harga2026 > 0);
-        const hasExplicitStatus =
-          kab.statusRekon === 'konfirmasi_lapangan' || kab.statusRekon === 'anomali_terjustifikasi';
+        const isCV = kab.koefisienVariasi > 20;
+        const isRasio = kab.harga2026 > 0 && (kab.rasio > 120 || kab.rasio < 80);
+        const hasExplicitStatus = kab.statusRekon === 'rekon_selesai';
 
         if (isCV || isRasio || hasExplicitStatus) {
-          let anomalyType: AnomaliItem['anomalyType'] = 'CV Tinggi (> 10%)';
+          let anomalyType: AnomaliItem['anomalyType'] = 'CV Tinggi (> 20%)';
           if (isCV && isRasio) {
             anomalyType = 'Ganda (CV & Rasio)';
           } else if (isRasio) {
-            anomalyType = 'Rasio Ekstrem (> 106% / < 95%)';
+            anomalyType = 'Rasio Ekstrem (< 80% / > 120%)';
           }
 
           list.push({
@@ -156,33 +155,29 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
     return allAnomalies.filter((item) => item.kabupaten.kode === currentUser.kabupatenKode).length;
   }, [allAnomalies, isKabupatenRole, currentUser.kabupatenKode]);
 
-  // Monitoring status per kabupaten for Pemilik (14 Kab/Kota)
+  // Monitoring status per kabupaten for Pemilik (14 Kab/Kota) - 2 states only
   const kabStatusSummary = useMemo(() => {
     return KABUPATEN_KALBAR_LIST.map((k) => {
       const items = allAnomalies.filter((a) => a.kabupaten.kode === k.kode);
       const total = items.length;
-      const selesai = items.filter((a) => a.kabupaten.statusRekon === 'rekon_selesai').length;
-      const terjustifikasi = items.filter((a) => a.kabupaten.statusRekon === 'anomali_terjustifikasi').length;
-      const konfirmasi = items.filter((a) => a.kabupaten.statusRekon === 'konfirmasi_lapangan').length;
-      const belum = items.filter((a) => !a.kabupaten.statusRekon || a.kabupaten.statusRekon === 'belum_rekon').length;
-      const progressPct = total > 0 ? Math.round(((selesai + terjustifikasi) / total) * 100) : 100;
+      const selesai = items.filter((a) => a.kabupaten.statusRekon === 'rekon_selesai' || Boolean(a.kabupaten.isVerified)).length;
+      const belum = total - selesai;
+      const progressPct = total > 0 ? Math.round((selesai / total) * 100) : 100;
 
       return {
         ...k,
         total,
         selesai,
-        terjustifikasi,
-        konfirmasi,
         belum,
         progressPct
       };
     });
   }, [allAnomalies]);
 
-  // Overall completed count across Kalbar
+  // Overall completed count across Kalbar (Rekon Selesai)
   const totalSelesaiKalbar = useMemo(() => {
     return allAnomalies.filter(
-      (a) => a.kabupaten.statusRekon === 'rekon_selesai' || a.kabupaten.statusRekon === 'anomali_terjustifikasi'
+      (a) => a.kabupaten.statusRekon === 'rekon_selesai' || Boolean(a.kabupaten.isVerified)
     ).length;
   }, [allAnomalies]);
 
@@ -557,8 +552,8 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                       <strong className="font-mono text-rose-300">{k.total}</strong>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Selesai/Just:</span>
-                      <strong className="font-mono text-emerald-300">{k.selesai + k.terjustifikasi}</strong>
+                      <span className="text-slate-400">Rekon Selesai:</span>
+                      <strong className="font-mono text-emerald-300">{k.selesai}</strong>
                     </div>
                   </div>
                 </div>
@@ -584,8 +579,8 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
               </h2>
               <p className="text-[11px] text-slate-500 mt-0.5">
                 {isKabupatenRole
-                  ? 'Menampilkan anomali Koefisien Variasi (> 10%) dan Rasio harga (> 106% / < 95%) khusus untuk wilayah Anda.'
-                  : 'Menampilkan seluruh kabupaten/kota yang mengalami anomali Koefisien Variasi (> 10%) dan Rasio perbandingan harga (> 106% / < 95%) lintas 89 komoditas.'}
+                  ? 'Menampilkan anomali Koefisien Variasi (> 20%) dan Rasio harga (< 80% / > 120%) khusus untuk wilayah Anda.'
+                  : 'Menampilkan seluruh kabupaten/kota yang mengalami anomali Koefisien Variasi (> 20%) dan Rasio perbandingan harga (< 80% / > 120%) lintas 89 komoditas.'}
               </p>
             </div>
 
@@ -677,8 +672,8 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                 className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer"
               >
                 <option value="all">Semua Kriteria</option>
-                <option value="any_cv">Anomali CV (&gt; 10%)</option>
-                <option value="any_rasio">Anomali Rasio (&gt; 106% / &lt; 95%)</option>
+                <option value="any_cv">Anomali CV (&gt; 20%)</option>
+                <option value="any_rasio">Anomali Rasio (&lt; 80% / &gt; 120%)</option>
                 <option value="both">Ganda (CV &amp; Rasio)</option>
                 <option value="cv_only">Hanya CV</option>
                 <option value="rasio_only">Hanya Rasio</option>
@@ -698,10 +693,8 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                 }}
                 className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer"
               >
-                <option value="all">Semua Status</option>
+                <option value="all">Semua Status (2 Status)</option>
                 <option value="belum_rekon">Belum Rekon</option>
-                <option value="konfirmasi_lapangan">Konfirmasi Lapangan</option>
-                <option value="anomali_terjustifikasi">Anomali Terjustifikasi</option>
                 <option value="rekon_selesai">Rekon Selesai</option>
               </select>
             </div>
@@ -826,7 +819,7 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                 </th>
 
                 {/* Aksi */}
-                <th className="py-2.5 px-1 text-center w-[3%]">
+                <th className="py-2.5 px-1 text-center w-[5%]">
                   Aksi
                 </th>
               </tr>
@@ -859,8 +852,8 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                   };
 
                   const isSaved = savedRowId === item.id;
-                  const isHighCV = item.kabupaten.koefisienVariasi > 10;
-                  const isExtremeRasio = item.kabupaten.rasio > 106 || item.kabupaten.rasio < 95;
+                  const isHighCV = item.kabupaten.koefisienVariasi > 20;
+                  const isExtremeRasio = item.kabupaten.harga2026 > 0 && (item.kabupaten.rasio > 120 || item.kabupaten.rasio < 80);
                   const userCanEdit = canEditRow(item.kabupaten.kode);
 
                   return (
@@ -901,22 +894,26 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
 
                       {/* Harga 2026 */}
                       <td className="py-2 px-1 text-right font-mono text-slate-600 tabular-nums">
-                        {formatRupiahNumber(item.kabupaten.harga2026)}
+                        {item.kabupaten.harga2026 > 0 ? formatRupiahNumber(item.kabupaten.harga2026) : '-'}
                       </td>
 
                       {/* Rasio */}
                       <td className="py-2 px-1 text-right font-mono tabular-nums">
-                        <span
-                          className={`inline-block font-bold px-1.5 py-0.5 rounded text-[10px] ${
-                            item.kabupaten.rasio > 106
-                              ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                              : item.kabupaten.rasio < 95
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              : 'text-slate-700'
-                          }`}
-                        >
-                          {formatPercent(item.kabupaten.rasio)}%
-                        </span>
+                        {item.kabupaten.harga2026 > 0 ? (
+                          <span
+                            className={`inline-block font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                              item.kabupaten.rasio > 120
+                                ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                : item.kabupaten.rasio < 80
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'text-slate-700'
+                            }`}
+                          >
+                            {formatPercent(item.kabupaten.rasio)}%
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-mono" title="Data 2026 tidak dicacah">-</span>
+                        )}
                       </td>
 
                       {/* Koefisien Variasi */}
@@ -932,76 +929,53 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                         </span>
                       </td>
 
-                      {/* Status Rekon Dropdown */}
+                      {/* Status Rekon (Hanya 2 Status: belum_rekon & rekon_selesai) */}
                       <td className="py-1 px-1 text-center">
                         <select
                           disabled={!userCanEdit}
-                          value={currentEdit.status}
-                          onChange={(e) => handleFieldChange(item.id, 'status', e.target.value)}
+                          value={item.kabupaten.statusRekon === 'rekon_selesai' || item.kabupaten.isVerified ? 'rekon_selesai' : 'belum_rekon'}
+                          onChange={(e) => {
+                            const newStatus = e.target.value as StatusRekon;
+                            onUpdateAnomali(item.dbKey, item.kabupaten.id || item.kabupaten.kode, newStatus, item.kabupaten.catatan || '');
+                          }}
                           className={`w-full text-[10px] font-bold rounded px-1.5 py-1 border transition-colors ${
                             !userCanEdit
                               ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                               : 'cursor-pointer'
                           } ${
-                            currentEdit.status === 'rekon_selesai'
+                            item.kabupaten.statusRekon === 'rekon_selesai' || item.kabupaten.isVerified
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                              : currentEdit.status === 'anomali_terjustifikasi'
-                              ? 'bg-sky-50 text-sky-800 border-sky-300'
-                              : currentEdit.status === 'konfirmasi_lapangan'
-                              ? 'bg-amber-50 text-amber-900 border-amber-300'
                               : 'bg-slate-50 text-slate-700 border-slate-300'
                           }`}
                         >
-                          <option value="konfirmasi_lapangan">Konfirmasi Lapangan</option>
-                          <option value="anomali_terjustifikasi">Anomali Terjustifikasi</option>
-                          <option value="rekon_selesai">Rekon Selesai</option>
                           <option value="belum_rekon">Belum Rekon</option>
+                          <option value="rekon_selesai">Rekon Selesai</option>
                         </select>
                       </td>
 
-                      {/* Catatan Lapangan & Inline Save */}
-                      <td className="py-1 px-1.5">
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            disabled={!userCanEdit}
-                            value={currentEdit.catatan}
-                            onChange={(e) => handleFieldChange(item.id, 'catatan', e.target.value)}
-                            placeholder={userCanEdit ? "Tulis justifikasi harga..." : "Hanya admin wilayah ini..."}
-                            className={`flex-1 border rounded px-2 py-0.5 text-[10px] text-slate-800 focus:outline-none focus:ring-1 focus:ring-rose-500 ${
-                              !userCanEdit ? 'bg-slate-100 border-slate-200 cursor-not-allowed text-slate-400' : 'bg-white border-slate-200'
-                            }`}
-                          />
-                          {userCanEdit ? (
-                            <button
-                              type="button"
-                              onClick={() => handleSaveRow(item)}
-                              title="Simpan Catatan & Status Rekon"
-                              className={`shrink-0 p-1 rounded transition-colors cursor-pointer ${
-                                isSaved
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-300'
-                              }`}
-                            >
-                              {isSaved ? <Check className="w-3 h-3" /> : <Save className="w-3 h-3" />}
-                            </button>
+                      {/* Catatan Lapangan & Rekon (Terintegrasi dari Detail Rekonda) */}
+                      <td className="py-1 px-2 text-left">
+                        <span
+                          className="text-[10px] text-slate-700 truncate max-w-[150px] sm:max-w-[200px] block"
+                          title={displayCatatan ? displayCatatan : 'Belum ada catatan dari Detail Rekonda'}
+                        >
+                          {displayCatatan ? (
+                            displayCatatan
                           ) : (
-                            <span title="Akses edit hanya untuk admin kabupaten terkait" className="p-1 text-slate-300">
-                              <Lock className="w-3 h-3" />
-                            </span>
+                            <span className="text-slate-400 italic">-</span>
                           )}
-                        </div>
+                        </span>
                       </td>
 
-                      {/* Aksi / View Detail */}
+                      {/* Aksi / View Detail (Hanya 1 icon) */}
                       <td className="py-2 px-1 text-center">
                         <button
                           type="button"
                           onClick={() => onOpenDetail(item.kabupaten, item.komoditas)}
                           title="Lihat Detail Responden & Rekon"
-                          className="p-1 rounded text-slate-500 hover:text-rose-600 hover:bg-slate-100 transition-colors cursor-pointer inline-flex items-center justify-center"
+                          className="p-1.5 rounded-md text-sky-700 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors cursor-pointer inline-flex items-center justify-center shadow-2xs"
                         >
-                          <Eye className="w-3.5 h-3.5" />
+                          <Eye className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>
