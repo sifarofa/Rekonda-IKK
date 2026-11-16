@@ -9,13 +9,17 @@ import {
   ArrowUp,
   ArrowDown,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  Calculator
 } from 'lucide-react';
-import { KabupatenRekon, UserAuth, DisplayDensity } from '../types/rekonda';
+import { KabupatenRekon, Komoditas, TipeSewaAlat, UserAuth, DisplayDensity } from '../types/rekonda';
 import { formatRupiahNumber, formatPercent } from '../utils/formatters';
+import { isSewaAlatKomoditas, getSewaAlatKabStatus } from '../utils/sewaAlatCalculator';
 
 interface RekonTableProps {
   data: KabupatenRekon[];
+  selectedKomoditas?: Komoditas;
+  dbKey?: string;
   onOpenDetail: (item: KabupatenRekon) => void;
   onOpenNote: (item: KabupatenRekon) => void;
   onExportExcel: () => void;
@@ -23,6 +27,8 @@ interface RekonTableProps {
   selectedId?: string | null;
   onSelectRow?: (item: KabupatenRekon) => void;
   onSortedDataChange?: (sortedList: KabupatenRekon[]) => void;
+  onOpenLkSewaAlat?: (item: KabupatenRekon) => void;
+  onChangeTipeSewa?: (item: KabupatenRekon, nextTipe: TipeSewaAlat) => void;
   currentUser: UserAuth;
   density?: DisplayDensity;
 }
@@ -43,6 +49,7 @@ export type SortField =
 
 export const RekonTable: React.FC<RekonTableProps> = ({
   data,
+  selectedKomoditas,
   onOpenDetail,
   onOpenNote,
   onExportExcel,
@@ -50,9 +57,13 @@ export const RekonTable: React.FC<RekonTableProps> = ({
   selectedId,
   onSelectRow,
   onSortedDataChange,
+  onOpenLkSewaAlat,
+  onChangeTipeSewa,
   currentUser,
   density = 'normal'
 }) => {
+  const isSewaAlat = isSewaAlatKomoditas(selectedKomoditas?.kode || '');
+  const isPemilik = currentUser.role === 'pemilik' || currentUser.isOwner;
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState<number>(15);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -136,8 +147,100 @@ export const RekonTable: React.FC<RekonTableProps> = ({
   const rowPaddingX = density === 'compact' ? 'px-1' : density === 'comfortable' ? 'px-2' : 'px-1.5';
   const tableFontSize = density === 'compact' ? 'text-[10.5px]' : density === 'comfortable' ? 'text-xs' : 'text-[11px]';
 
+  const sewaSummary = useMemo(() => {
+    if (!isSewaAlat) return null;
+    let kabAllPure = 0;
+    let kabWaitingLk = 0;
+    let kabBelumKonf = 0;
+    let totalResp = 0;
+    let pureResp = 0;
+    let waitingLkResp = 0;
+    let belumKonfResp = 0;
+
+    for (const d of data) {
+      const st = getSewaAlatKabStatus(d);
+      if (st.allPure) kabAllPure++;
+      else if (st.waitingLkCount > 0) kabWaitingLk++;
+      else kabBelumKonf++;
+
+      totalResp += st.total;
+      pureResp += st.pureCount;
+      waitingLkResp += st.waitingLkCount;
+      belumKonfResp += st.belumKonfCount;
+    }
+
+    return {
+      kabAllPure,
+      kabWaitingLk,
+      kabBelumKonf,
+      totalResp,
+      pureResp,
+      waitingLkResp,
+      belumKonfResp
+    };
+  }, [data, isSewaAlat]);
+
   return (
     <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-3 sm:p-4 mb-6 w-full overflow-hidden">
+      {/* Sewa Alat Confirmation & LK Banner (Codes 5101 - 5803) */}
+      {isSewaAlat && sewaSummary && (
+        <div className="mb-3 bg-amber-50/90 border border-amber-300 rounded-xl px-3.5 py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-start gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 mt-0.5">
+              <Calculator className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="font-bold text-amber-950 flex flex-wrap items-center gap-1.5">
+                <span>Konfirmasi Sewa Alat per Responden [{selectedKomoditas?.kode}]</span>
+                <span className="text-[10px] font-mono bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded text-emerald-900">
+                  Kab Siap Murni: {sewaSummary.kabAllPure}/{data.length}
+                </span>
+                {sewaSummary.totalResp > 0 && (
+                  <span className="text-[10px] font-mono bg-white border border-amber-300 px-1.5 py-0.2 rounded text-slate-800">
+                    Responden Murni: {sewaSummary.pureResp}/{sewaSummary.totalResp}
+                  </span>
+                )}
+                {sewaSummary.waitingLkResp > 0 && (
+                  <span className="text-[10px] font-mono bg-rose-100 border border-rose-300 px-1.5 py-0.2 rounded text-rose-900">
+                    Menunggu LK: {sewaSummary.waitingLkResp} resp
+                  </span>
+                )}
+                {sewaSummary.belumKonfResp > 0 && (
+                  <span className="text-[10px] font-mono bg-slate-100 border border-slate-300 px-1.5 py-0.2 rounded text-slate-700">
+                    Belum Konf: {sewaSummary.belumKonfResp} resp
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-amber-900 mt-0.5">
+                {isPemilik ? (
+                  <>
+                    Dalam 1 kab/kota bisa terdapat responden campuran (<strong>Sewa Murni</strong> &amp; <strong>All-In</strong>). Klik <strong>Detail Responden</strong> untuk konfirmasi per responden, lalu hitung responden <strong>All-In</strong> di <strong>LK Sewa Alat</strong>. Jika semua responden sudah murni, harga utama terhitung otomatis.
+                  </>
+                ) : (
+                  <>
+                    Admin Kab/Kota dapat mengonfirmasi status <strong>Sewa Murni</strong> atau <strong>All-In</strong> <strong>per responden</strong> lewat tombol <strong>Detail Responden</strong> (ikon mata) pada wilayahnya. Penghitungan <strong>LK Sewa Alat</strong> dilakukan oleh Admin Provinsi.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+
+          {isPemilik && onOpenLkSewaAlat && data.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const target = data.find((d) => d.id === selectedId) || data[0];
+                onOpenLkSewaAlat(target);
+              }}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer shrink-0"
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              <span>Buka LK Sewa Alat</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Table Toolbar (Excel, Cetak, Entries, Search) */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 mb-3 text-xs">
         {/* Left: Excel & Cetak buttons */}
@@ -373,6 +476,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
                 const isSelected = selectedId === row.id;
                 const isHighCV = row.koefisienVariasi > 20;
                 const hasNote = Boolean(row.catatan && row.catatan.trim().length > 0);
+                const sewaSt = isSewaAlat ? getSewaAlatKabStatus(row) : null;
 
                 return (
                   <tr
@@ -388,7 +492,7 @@ export const RekonTable: React.FC<RekonTableProps> = ({
                   >
                     {/* 1. Kabupaten - STICKY LEFT */}
                     <td
-                      className={`${rowPaddingY} ${rowPaddingX} font-medium text-slate-900 truncate sticky left-0 z-10 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] ${
+                      className={`${rowPaddingY} ${rowPaddingX} font-medium text-slate-900 sticky left-0 z-10 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] ${
                         isSelected ? 'bg-rose-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
                       }`}
                     >
@@ -401,11 +505,109 @@ export const RekonTable: React.FC<RekonTableProps> = ({
                           </span>
                         )}
                       </div>
+                      {isSewaAlat && onChangeTipeSewa && sewaSt && (
+                        <div
+                          className="mt-1 flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <select
+                            disabled={!isPemilik && currentUser.kabupatenKode !== row.kode}
+                            value={row.tipeSewa || 'belum_konfirmasi'}
+                            onChange={(e) =>
+                              onChangeTipeSewa(row, e.target.value as TipeSewaAlat)
+                            }
+                            title="Konfirmasi cepat satu wilayah (atau klik tombol Resp untuk konfirmasi per responden)"
+                            className={`flex-1 min-w-0 text-[9.5px] font-bold rounded px-1 py-0.5 border transition-colors ${
+                              sewaSt.allPure
+                                ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
+                                : sewaSt.waitingLkCount > 0 || row.tipeSewa === 'all_in'
+                                ? 'bg-amber-100 text-amber-950 border-amber-400'
+                                : 'bg-slate-100 text-slate-600 border-slate-300'
+                            } ${
+                              !isPemilik && currentUser.kabupatenKode !== row.kode
+                                ? 'opacity-65 cursor-not-allowed'
+                                : 'cursor-pointer'
+                            }`}
+                          >
+                            <option value="belum_konfirmasi">? Belum Konf.</option>
+                            <option value="sewa_murni">✓ Semua Murni</option>
+                            <option value="all_in">
+                              {isPemilik ? '⚙ Semua All-In (LK)' : '⚙ Semua All-In'}
+                            </option>
+                          </select>
+                          {sewaSt.total > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenDetail(row)}
+                              title={`Konfirmasi per responden (${sewaSt.pureCount}/${sewaSt.total} responden sudah sewa murni)`}
+                              className={`shrink-0 text-[9px] font-mono font-bold px-1 py-0.5 rounded border cursor-pointer transition-colors ${
+                                sewaSt.allPure
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                                  : sewaSt.waitingLkCount > 0
+                                  ? 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'
+                                  : 'bg-sky-50 text-sky-800 border-sky-300 hover:bg-sky-100'
+                              }`}
+                            >
+                              {sewaSt.pureCount}/{sewaSt.total}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
 
-                    {/* 2. Harga 2027 (Rata-rata berjalan) */}
-                    <td className={`${rowPaddingY} ${rowPaddingX} text-right font-mono font-bold text-slate-900 bg-rose-50/30 tabular-nums`}>
-                      {formatRupiahNumber(row.harga2027)}
+                    {/* 2. Harga 2027 (Rata-rata berjalan / Hasil Sewa Murni LK) */}
+                    <td
+                      className={`${rowPaddingY} ${rowPaddingX} text-right font-mono font-bold text-slate-900 bg-rose-50/30 tabular-nums`}
+                      title={
+                        sewaSt && sewaSt.total > 0
+                          ? sewaSt.allPure
+                            ? sewaSt.hasAnyLk
+                              ? `Seluruh ${sewaSt.total} responden sudah sewa murni (${sewaSt.allInComputedCount} via LK, ${sewaSt.murniCount} murni)`
+                              : `Seluruh ${sewaSt.total} responden berstatus Sewa Murni`
+                            : `Harga utama menunggu seluruh responden siap murni (${sewaSt.pureCount}/${sewaSt.total} siap; ${sewaSt.waitingLkCount} menunggu LK, ${sewaSt.belumKonfCount} belum konfirmasi)`
+                          : isSewaAlat && row.tipeSewa === 'all_in' && row.lkSewaAlat?.hargaAwalSebelumLk
+                          ? `Hasil Sewa Murni LK dari harga survei All-In Rp ${formatRupiahNumber(
+                              row.lkSewaAlat.hargaAwalSebelumLk
+                            )}`
+                          : undefined
+                      }
+                    >
+                      <div>{formatRupiahNumber(row.harga2027)}</div>
+                      {sewaSt && (
+                        sewaSt.total > 0 ? (
+                          sewaSt.allPure ? (
+                            sewaSt.hasAnyLk ? (
+                              <div className="text-[9px] font-sans font-extrabold text-amber-800 bg-amber-100 border border-amber-300 rounded px-1 inline-block mt-0.5">
+                                LK Murni ({sewaSt.allInComputedCount}/{sewaSt.total})
+                              </div>
+                            ) : (
+                              <div className="text-[9px] font-sans font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 rounded px-1 inline-block mt-0.5">
+                                Semua Murni
+                              </div>
+                            )
+                          ) : sewaSt.waitingLkCount > 0 ? (
+                            <div className="text-[9px] font-sans font-bold text-rose-800 bg-rose-100 border border-rose-300 rounded px-1 inline-block mt-0.5">
+                              Menunggu LK ({sewaSt.waitingLkCount})
+                            </div>
+                          ) : (
+                            <div className="text-[9px] font-sans font-semibold text-slate-700 bg-slate-100 border border-slate-300 rounded px-1 inline-block mt-0.5">
+                              Konf. {sewaSt.pureCount}/{sewaSt.total}
+                            </div>
+                          )
+                        ) : (
+                          row.tipeSewa === 'all_in' && (
+                            row.lkSewaAlat && row.lkSewaAlat.hasilSewaMurniBulan > 0 ? (
+                              <div className="text-[9px] font-sans font-extrabold text-amber-800 bg-amber-100 border border-amber-300 rounded px-1 inline-block mt-0.5">
+                                LK Murni
+                              </div>
+                            ) : (
+                              <div className="text-[9px] font-sans font-bold text-rose-800 bg-rose-100 border border-rose-300 rounded px-1 inline-block mt-0.5">
+                                Menunggu LK
+                              </div>
+                            )
+                          )
+                        )
+                      )}
                     </td>
 
                     {/* 3. TW III 2026 */}
@@ -494,9 +696,22 @@ export const RekonTable: React.FC<RekonTableProps> = ({
                       </button>
                     </td>
 
-                    {/* 12. Aksi: Detail Rekonda Komoditas */}
+                    {/* 12. Aksi: LK Sewa Alat (Admin Provinsi) + Detail Rekonda Komoditas */}
                     <td className={`${rowPaddingY} ${rowPaddingX} text-center`}>
-                      <div className="flex items-center justify-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {isPemilik && isSewaAlat && onOpenLkSewaAlat && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenLkSewaAlat(row);
+                            }}
+                            title="Buka LK Penghitungan Sewa Alat Murni (Admin Provinsi)"
+                            className="inline-flex items-center justify-center w-6 h-6 rounded bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-2xs transition-colors cursor-pointer"
+                          >
+                            <Calculator className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={(e) => {

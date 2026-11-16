@@ -4,7 +4,9 @@ export interface RespondenData {
   triwulan: number;   // 1, 2, 3, 4
   nama: string;       // Nama toko / distributor
   merk: string;       // Merek / kualitas spesifik
-  harga: number;      // Harga riil transaksi
+  harga: number;      // Harga riil transaksi (otomatis terupdate ke Sewa Murni jika dihitung via LK)
+  tipeSewa?: TipeSewaAlat;
+  lkSewaAlat?: LkSewaAlatData;
 }
 
 export type StatusRekon =
@@ -12,6 +14,29 @@ export type StatusRekon =
   | 'konfirmasi_lapangan'
   | 'anomali_terjustifikasi'
   | 'rekon_selesai';
+
+export type TipeSewaAlat = 'belum_konfirmasi' | 'sewa_murni' | 'all_in';
+
+export interface LkSewaAlatData {
+  mode: 'alat_berat' | 'genset_bulanan' | 'genset_harian';
+  hpLapangan: number;
+  biayaAllInBulan: number;
+  adjustPajakProfitPct: number;
+  biayaMobilisasi: number;
+  hargaSolar: number;
+  hargaPelumas: number;
+  biayaOperatorHari: number;
+  includeWorkshop: boolean;
+  kapasitasKva?: number;
+  tarifAllInGenset?: number;
+  jamPerHari?: number;
+  hariPerBulan?: number;
+  pembantuOperatorHari?: number;
+  hargaAwalSebelumLk?: number;
+  hasilSewaMurniJam: number;
+  hasilSewaMurniBulan: number;
+  updatedAt?: string;
+}
 
 export interface KabupatenRekon {
   id: string;
@@ -45,6 +70,10 @@ export interface KabupatenRekon {
   aksiRekon?: string;       // Tindak lanjut / konfirmasi yang dilakukan
   isVerified?: boolean;
   
+  // Konfirmasi & Lembar Kerja Penghitungan Sewa Alat (Kode 5101 - 5803)
+  tipeSewa?: TipeSewaAlat;
+  lkSewaAlat?: LkSewaAlatData;
+
   // Responden mikro
   respondents: RespondenData[];
 }

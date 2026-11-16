@@ -13,7 +13,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   Layers,
-  FileDown
+  FileDown,
+  Calculator
 } from 'lucide-react';
 import { UserAuth } from '../types/rekonda';
 
@@ -27,6 +28,7 @@ interface SidebarProps {
   onOpenUpload: () => void;
   onOpenDisplayAdjust: () => void;
   onOpenUserManagement: () => void;
+  onOpenLkSewaAlat?: () => void;
   onDownloadSeluruhKualitas: () => void;
   onDownloadSeluruhResponden: () => void;
   onLogout: () => void;
@@ -44,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenUpload,
   onOpenDisplayAdjust,
   onOpenUserManagement,
+  onOpenLkSewaAlat,
   onDownloadSeluruhKualitas,
   onDownloadSeluruhResponden,
   onLogout,
@@ -212,6 +215,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </div>
               </button>
+
+              {/* Menu 3: LK Sewa Alat (5101 - 5803) - Khusus Admin Provinsi */}
+              {isPemilik && onOpenLkSewaAlat && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenLkSewaAlat();
+                    if (onCloseMobile) onCloseMobile();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold text-amber-200 hover:text-white bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/30 transition-all text-left cursor-pointer"
+                >
+                  <Calculator className="w-4 h-4 shrink-0 text-amber-400" />
+                  <div className="flex-1 truncate">
+                    <div className="font-bold">LK Sewa Alat</div>
+                    <div className="text-[10px] text-amber-300/80 font-normal truncate">
+                      All-In &rarr; Murni (5101–5803)
+                    </div>
+                  </div>
+                </button>
+              )}
             </nav>
           </div>
 

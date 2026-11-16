@@ -18,11 +18,13 @@ import {
   ChevronUp,
   CheckCircle2,
   Clock,
-  Filter
+  Filter,
+  Calculator
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { KabupatenRekon, StatusRekon, UserAuth, Komoditas, Provinsi, DisplayDensity } from '../types/rekonda';
+import { KabupatenRekon, StatusRekon, TipeSewaAlat, UserAuth, Komoditas, Provinsi, DisplayDensity } from '../types/rekonda';
 import { formatRupiahNumber, formatRupiahCurrency, formatPercent } from '../utils/formatters';
+import { isSewaAlatKomoditas, getSewaAlatKabStatus } from '../utils/sewaAlatCalculator';
 import { KABUPATEN_KALBAR_LIST } from '../data/kabupatenList';
 
 interface AnomaliItem {
@@ -44,6 +46,8 @@ interface AnomaliRekonTableProps {
   onOpenAuth: () => void;
   onUpdateAnomali: (key: string, kabupatenId: string, status: StatusRekon, catatan: string) => void;
   onOpenDetail: (kab: KabupatenRekon, komoditas: Komoditas) => void;
+  onOpenLkSewaAlat?: (komKode: string, kabKode: string) => void;
+  onChangeTipeSewa?: (dbKey: string, kabKode: string, nextTipe: TipeSewaAlat) => void;
   density?: DisplayDensity;
 }
 
@@ -67,6 +71,8 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
   onOpenAuth,
   onUpdateAnomali,
   onOpenDetail,
+  onOpenLkSewaAlat,
+  onChangeTipeSewa,
   density = 'normal'
 }) => {
   // Determine role isolation
@@ -819,7 +825,7 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                 </th>
 
                 {/* Aksi */}
-                <th className="py-2.5 px-1 text-center w-[5%]">
+                <th className="py-2.5 px-1 text-center w-[7%]">
                   Aksi
                 </th>
               </tr>
@@ -855,6 +861,8 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                   const isHighCV = item.kabupaten.koefisienVariasi > 20;
                   const isExtremeRasio = item.kabupaten.harga2026 > 0 && (item.kabupaten.rasio > 120 || item.kabupaten.rasio < 80);
                   const userCanEdit = canEditRow(item.kabupaten.kode);
+                  const isSewaAlatItem = isSewaAlatKomoditas(item.komoditas.kode);
+                  const sewaSt = isSewaAlatItem ? getSewaAlatKabStatus(item.kabupaten) : null;
 
                   return (
                     <tr
@@ -874,8 +882,53 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                           <span className="font-mono text-slate-400 text-[10px]">[{item.komoditas.kode}]</span>{' '}
                           <span className="font-bold text-slate-900">{item.komoditas.nama}</span>
                         </div>
-                        <div className="text-[10px] text-slate-500 font-mono">
-                          Satuan: {item.komoditas.satuan || 'Satuan'}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            Satuan: {item.komoditas.satuan || 'Satuan'}
+                          </span>
+                          {isSewaAlatItem && onChangeTipeSewa && sewaSt && (
+                            <div className="inline-flex items-center gap-1">
+                              <select
+                                disabled={!userCanEdit}
+                                value={item.kabupaten.tipeSewa || 'belum_konfirmasi'}
+                                onChange={(e) =>
+                                  onChangeTipeSewa(
+                                    item.dbKey,
+                                    item.kabupaten.kode,
+                                    e.target.value as TipeSewaAlat
+                                  )
+                                }
+                                title="Konfirmasi cepat sewa satu wilayah (atau klik tombol Resp di sebelah untuk konfirmasi per responden)"
+                                className={`text-[9.5px] font-bold rounded px-1 py-0.2 border transition-colors ${
+                                  sewaSt.allPure
+                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
+                                    : sewaSt.waitingLkCount > 0 || item.kabupaten.tipeSewa === 'all_in'
+                                    ? 'bg-amber-100 text-amber-950 border-amber-400'
+                                    : 'bg-slate-100 text-slate-600 border-slate-300'
+                                } ${!userCanEdit ? 'opacity-65 cursor-not-allowed' : 'cursor-pointer'}`}
+                              >
+                                <option value="belum_konfirmasi">? Belum Konf.</option>
+                                <option value="sewa_murni">✓ Semua Murni</option>
+                                <option value="all_in">{isPemilik ? '⚙ Semua All-In (LK)' : '⚙ Semua All-In'}</option>
+                              </select>
+                              {sewaSt.total > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenDetail(item.kabupaten, item.komoditas)}
+                                  title={`Konfirmasi per responden (${sewaSt.pureCount}/${sewaSt.total} responden sudah murni)`}
+                                  className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded border cursor-pointer transition-colors ${
+                                    sewaSt.allPure
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                                      : sewaSt.waitingLkCount > 0
+                                      ? 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'
+                                      : 'bg-sky-50 text-sky-800 border-sky-300 hover:bg-sky-100'
+                                  }`}
+                                >
+                                  Resp {sewaSt.pureCount}/{sewaSt.total}
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -888,8 +941,60 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                       </td>
 
                       {/* Harga 2027 */}
-                      <td className="py-2 px-1.5 text-right font-mono font-bold text-slate-900 bg-rose-50/30 tabular-nums">
-                        {formatRupiahNumber(item.kabupaten.harga2027)}
+                      <td
+                        className="py-2 px-1.5 text-right font-mono font-bold text-slate-900 bg-rose-50/30 tabular-nums"
+                        title={
+                          sewaSt && sewaSt.total > 0
+                            ? sewaSt.allPure
+                              ? sewaSt.hasAnyLk
+                                ? `Seluruh ${sewaSt.total} responden sudah sewa murni (${sewaSt.allInComputedCount} via LK, ${sewaSt.murniCount} murni)`
+                                : `Seluruh ${sewaSt.total} responden berstatus Sewa Murni`
+                              : `Menunggu seluruh responden siap murni (${sewaSt.pureCount}/${sewaSt.total} siap; ${sewaSt.waitingLkCount} menunggu LK, ${sewaSt.belumKonfCount} belum konf.)`
+                            : isSewaAlatItem &&
+                              item.kabupaten.tipeSewa === 'all_in' &&
+                              item.kabupaten.lkSewaAlat?.hargaAwalSebelumLk
+                            ? `Hasil Sewa Murni LK dari harga All-In Rp ${formatRupiahNumber(
+                                item.kabupaten.lkSewaAlat.hargaAwalSebelumLk
+                              )}`
+                            : undefined
+                        }
+                      >
+                        <div>{formatRupiahNumber(item.kabupaten.harga2027)}</div>
+                        {sewaSt && (
+                          sewaSt.total > 0 ? (
+                            sewaSt.allPure ? (
+                              sewaSt.hasAnyLk ? (
+                                <span className="text-[9px] font-sans font-extrabold text-amber-800 bg-amber-100 border border-amber-300 rounded px-1 inline-block mt-0.5">
+                                  LK Murni ({sewaSt.allInComputedCount}/{sewaSt.total})
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-sans font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 rounded px-1 inline-block mt-0.5">
+                                  Semua Murni
+                                </span>
+                              )
+                            ) : sewaSt.waitingLkCount > 0 ? (
+                              <span className="text-[9px] font-sans font-bold text-rose-800 bg-rose-100 border border-rose-300 rounded px-1 inline-block mt-0.5">
+                                Menunggu LK ({sewaSt.waitingLkCount})
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-sans font-semibold text-slate-700 bg-slate-100 border border-slate-300 rounded px-1 inline-block mt-0.5">
+                                Konf. {sewaSt.pureCount}/{sewaSt.total}
+                              </span>
+                            )
+                          ) : (
+                            item.kabupaten.tipeSewa === 'all_in' && (
+                              item.kabupaten.lkSewaAlat && item.kabupaten.lkSewaAlat.hasilSewaMurniBulan > 0 ? (
+                                <span className="text-[9px] font-sans font-extrabold text-amber-800 bg-amber-100 border border-amber-300 rounded px-1 inline-block mt-0.5">
+                                  LK Murni
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-sans font-bold text-rose-800 bg-rose-100 border border-rose-300 rounded px-1 inline-block mt-0.5">
+                                  Menunggu LK
+                                </span>
+                              )
+                            )
+                          )
+                        )}
                       </td>
 
                       {/* Harga 2026 */}
@@ -967,16 +1072,28 @@ export const AnomaliRekonTable: React.FC<AnomaliRekonTableProps> = ({
                         </span>
                       </td>
 
-                      {/* Aksi / View Detail (Hanya 1 icon) */}
+                      {/* Aksi / View Detail + LK Sewa Alat (Khusus Admin Provinsi) */}
                       <td className="py-2 px-1 text-center">
-                        <button
-                          type="button"
-                          onClick={() => onOpenDetail(item.kabupaten, item.komoditas)}
-                          title="Lihat Detail Responden & Rekon"
-                          className="p-1.5 rounded-md text-sky-700 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors cursor-pointer inline-flex items-center justify-center shadow-2xs"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        <div className="inline-flex items-center justify-center gap-1">
+                          {isPemilik && isSewaAlatKomoditas(item.komoditas.kode) && onOpenLkSewaAlat && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenLkSewaAlat(item.komoditas.kode, item.kabupaten.kode)}
+                              title="Buka LK Penghitungan Sewa Alat Murni (Admin Provinsi)"
+                              className="p-1.5 rounded-md text-slate-950 bg-amber-400 hover:bg-amber-500 border border-amber-500 transition-colors cursor-pointer inline-flex items-center justify-center shadow-2xs"
+                            >
+                              <Calculator className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => onOpenDetail(item.kabupaten, item.komoditas)}
+                            title="Lihat Detail Responden & Rekon"
+                            className="p-1.5 rounded-md text-sky-700 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors cursor-pointer inline-flex items-center justify-center shadow-2xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

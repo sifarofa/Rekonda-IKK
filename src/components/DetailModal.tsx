@@ -11,10 +11,12 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Lock
+  Lock,
+  Calculator
 } from 'lucide-react';
-import { KabupatenRekon, RespondenData, Komoditas, UserAuth } from '../types/rekonda';
+import { KabupatenRekon, RespondenData, Komoditas, TipeSewaAlat, UserAuth } from '../types/rekonda';
 import { formatRupiahNumber, formatRupiahCurrency, formatPercent } from '../utils/formatters';
+import { getSewaAlatKabStatus, isSewaAlatKomoditas } from '../utils/sewaAlatCalculator';
 import responden2026LookupRaw from '../data/responden2026Lookup.json';
 
 interface DetailModalProps {
@@ -26,6 +28,20 @@ interface DetailModalProps {
   onOpenAddRespondent: (defaultTahun?: number, defaultTw?: number) => void;
   onOpenEditRespondent: (item: RespondenData) => void;
   onDeleteRespondent: (id: string) => void;
+  onChangeRespondentTipeSewa?: (
+    kabupatenKode: string,
+    respondentId: string,
+    nextTipe: TipeSewaAlat
+  ) => void;
+  onBatchChangeAllRespondentsTipeSewa?: (
+    kabupatenKode: string,
+    nextTipe: TipeSewaAlat
+  ) => void;
+  onOpenLkForRespondent?: (
+    komoditasKode: string,
+    kabupatenKode: string,
+    respondentId?: string
+  ) => void;
   currentUser: UserAuth;
   onOpenAuth: () => void;
 }
@@ -107,9 +123,21 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   onOpenAddRespondent,
   onOpenEditRespondent,
   onDeleteRespondent,
+  onChangeRespondentTipeSewa,
+  onBatchChangeAllRespondentsTipeSewa,
+  onOpenLkForRespondent,
   currentUser,
   onOpenAuth
 }) => {
+  const isSewaAlat = isSewaAlatKomoditas(komoditas.kode);
+  const isPemilik = currentUser.isOwner || currentUser.role === 'pemilik';
+  const canConfirmSewa =
+    currentUser.isLoggedIn &&
+    (isPemilik || (currentUser.role === 'kabupaten' && currentUser.kabupatenKode === kabupaten?.kode));
+  const kabSewaStatus = useMemo(
+    () => (kabupaten ? getSewaAlatKabStatus(kabupaten) : null),
+    [kabupaten]
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMerk, setSelectedMerk] = useState<string>('all');
   const [entriesPerPage, setEntriesPerPage] = useState<number>(10);
@@ -322,6 +350,93 @@ export const DetailModal: React.FC<DetailModalProps> = ({
             </div>
           </div>
 
+          {/* Per-Respondent Sewa Alat Confirmation Banner (Codes 5101 - 5803) */}
+          {isSewaAlat && kabSewaStatus && (
+            <div
+              className={`mb-4 rounded-lg border p-3 text-xs space-y-2 ${
+                kabSewaStatus.allPure
+                  ? 'bg-emerald-50/80 border-emerald-300'
+                  : 'bg-amber-50/90 border-amber-300'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-bold text-slate-900">
+                    Konfirmasi Sewa Alat per Responden:
+                  </span>
+                  <span className="font-mono text-[10px] font-extrabold bg-white border border-slate-300 px-2 py-0.5 rounded">
+                    Siap Murni: {kabSewaStatus.pureCount} / {kabSewaStatus.total || 0}
+                  </span>
+                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 px-1.5 py-0.5 rounded">
+                    Sewa Murni: {kabSewaStatus.murniCount}
+                  </span>
+                  <span className="text-[10px] font-bold bg-amber-100 text-amber-950 px-1.5 py-0.5 rounded">
+                    All-In (Sudah LK): {kabSewaStatus.allInComputedCount}
+                  </span>
+                  {kabSewaStatus.waitingLkCount > 0 && (
+                    <span className="text-[10px] font-bold bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded">
+                      All-In (Menunggu LK): {kabSewaStatus.waitingLkCount}
+                    </span>
+                  )}
+                  {kabSewaStatus.belumKonfCount > 0 && (
+                    <span className="text-[10px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
+                      Belum Konf: {kabSewaStatus.belumKonfCount}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                  {canConfirmSewa &&
+                    onBatchChangeAllRespondentsTipeSewa &&
+                    kabupaten.respondents.length > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onBatchChangeAllRespondentsTipeSewa(kabupaten.kode, 'sewa_murni')
+                          }
+                          className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition-colors cursor-pointer"
+                        >
+                          Semua Sewa Murni
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onBatchChangeAllRespondentsTipeSewa(kabupaten.kode, 'all_in')
+                          }
+                          className="px-2 py-1 rounded bg-white hover:bg-amber-100 text-amber-950 border border-amber-400 font-bold text-[10px] transition-colors cursor-pointer"
+                        >
+                          Semua All-In
+                        </button>
+                      </>
+                    )}
+                  {isPemilik && onOpenLkForRespondent && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenLkForRespondent(komoditas.kode, kabupaten.kode)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-[10px] shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <Calculator className="w-3 h-3" />
+                      <span>Buka LK Sewa Alat</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-700">
+                {kabSewaStatus.allPure ? (
+                  <span className="text-emerald-900 font-semibold">
+                    ✓ Seluruh responden di kab/kota ini sudah berstatus Sewa Murni. Nilai Harga 2027, CV, dan Rasio pada Tabel Rekon Daerah utama telah dihitung otomatis.
+                  </span>
+                ) : (
+                  <span>
+                    Konfirmasikan <strong>Sewa Murni</strong> atau <strong>All-In</strong> di setiap baris responden. Responden All-In akan dihitung di LK oleh Admin Provinsi. Setelah seluruh responden siap Sewa Murni, Tabel Rekon Daerah utama akan terhitung otomatis.
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+
           {/* Table Controls (Tampilkan X entri, Filter Merek & Cari box) */}
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-3 text-xs">
             <div className="flex flex-wrap items-center gap-3 text-slate-600">
@@ -447,6 +562,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                     <span>Rasio</span>
                   </th>
 
+                  {/* Jenis Sewa (Khusus 5101 - 5803) */}
+                  {isSewaAlat && (
+                    <th className="py-2.5 px-2.5 text-center whitespace-nowrap">
+                      <span>Jenis Sewa</span>
+                    </th>
+                  )}
+
                   {/* Aksi */}
                   <th className="py-2.5 px-3 text-center whitespace-nowrap">Aksi</th>
                 </tr>
@@ -454,7 +576,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
               <tbody className="divide-y divide-slate-200">
                 {currentRows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-6 text-center text-slate-500 font-medium">
+                    <td colSpan={isSewaAlat ? 9 : 8} className="py-6 text-center text-slate-500 font-medium">
                       Belum ada data responden untuk filter ini. Silakan klik tombol tambah di bawah.
                     </td>
                   </tr>
@@ -463,6 +585,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                     const prevData = getPrevYearRespondentData(kabupaten.kode, komoditas.kode, item);
                     const prevHarga = prevData.harga;
                     const respRasio = prevHarga && prevHarga > 0 ? (item.harga / prevHarga) * 100 : null;
+                    const hasLkMurni =
+                      isSewaAlat &&
+                      item.tipeSewa === 'all_in' &&
+                      Boolean(item.lkSewaAlat) &&
+                      (item.lkSewaAlat?.hasilSewaMurniBulan ?? 0) > 0;
 
                     return (
                       <tr
@@ -484,7 +611,22 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                           {item.merk || '-'}
                         </td>
                         <td className="py-2 px-3 text-right font-mono font-bold text-slate-900 tabular-nums">
-                          {formatRupiahNumber(item.harga)}
+                          <div>{formatRupiahNumber(item.harga)}</div>
+                          {hasLkMurni && item.lkSewaAlat?.hargaAwalSebelumLk && (
+                            <div className="text-[9.5px] font-sans font-semibold text-amber-800 mt-0.5">
+                              <span className="bg-amber-100 border border-amber-300 rounded px-1 mr-1">
+                                LK Murni
+                              </span>
+                              <span className="text-slate-500 line-through font-mono">
+                                {formatRupiahNumber(item.lkSewaAlat.hargaAwalSebelumLk)}
+                              </span>
+                            </div>
+                          )}
+                          {isSewaAlat && item.tipeSewa === 'all_in' && !hasLkMurni && (
+                            <div className="text-[9.5px] font-sans font-bold text-rose-700 bg-rose-100 border border-rose-200 rounded px-1 inline-block mt-0.5">
+                              Menunggu LK
+                            </div>
+                          )}
                         </td>
                         <td className="py-2 px-3 text-right font-mono font-medium text-slate-700 tabular-nums bg-slate-50/60">
                           {prevHarga !== null ? (
@@ -512,8 +654,57 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                             <span className="text-slate-400 font-mono">-</span>
                           )}
                         </td>
+
+                        {/* Jenis Sewa per Responden */}
+                        {isSewaAlat && (
+                          <td className="py-2 px-2 text-center whitespace-nowrap">
+                            {onChangeRespondentTipeSewa ? (
+                              <select
+                                disabled={!canConfirmSewa}
+                                value={item.tipeSewa || 'belum_konfirmasi'}
+                                onChange={(e) =>
+                                  onChangeRespondentTipeSewa(
+                                    kabupaten.kode,
+                                    item.id,
+                                    e.target.value as TipeSewaAlat
+                                  )
+                                }
+                                className={`text-[10px] font-bold rounded px-1.5 py-1 border transition-colors ${
+                                  item.tipeSewa === 'all_in'
+                                    ? hasLkMurni
+                                      ? 'bg-amber-100 text-amber-950 border-amber-400'
+                                      : 'bg-rose-50 text-rose-800 border-rose-300'
+                                    : item.tipeSewa === 'sewa_murni'
+                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
+                                    : 'bg-slate-100 text-slate-600 border-slate-300'
+                                } ${!canConfirmSewa ? 'opacity-65 cursor-not-allowed' : 'cursor-pointer'}`}
+                              >
+                                <option value="belum_konfirmasi">? Belum Konf.</option>
+                                <option value="sewa_murni">✓ Sewa Murni</option>
+                                <option value="all_in">{isPemilik ? '⚙ All-In (LK)' : '⚙ All-In'}</option>
+                              </select>
+                            ) : (
+                              <span className="text-[10px] text-slate-400">-</span>
+                            )}
+                          </td>
+                        )}
+
                         <td className="py-2 px-3 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
+                            {/* LK Calculator for Admin Provinsi */}
+                            {isSewaAlat && isPemilik && onOpenLkForRespondent && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onOpenLkForRespondent(komoditas.kode, kabupaten.kode, item.id)
+                                }
+                                title="Hitung Sewa Murni Responden Ini di LK (Khusus Admin Provinsi)"
+                                className="w-6 h-6 rounded bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+                              >
+                                <Calculator className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
                             {/* Yellow Edit Pencil button */}
                             <button
                               type="button"

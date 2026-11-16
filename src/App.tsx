@@ -13,9 +13,21 @@ import { DisplayAdjustModal } from './components/DisplayAdjustModal';
 import { LoginLandingPage } from './components/LoginLandingPage';
 import { Sidebar } from './components/Sidebar';
 import { UserManagementModal } from './components/UserManagementModal';
+import { LkSewaAlatModal } from './components/LkSewaAlatModal';
 import { PROVINSI_LIST, KOMODITAS_LIST, INITIAL_KABUPATEN_DATA } from './data/mockData';
-import { KabupatenRekon, RespondenData, Komoditas, Provinsi, UserAuth, StatusRekon, DisplaySettings } from './types/rekonda';
-import { calculateStats, getDominantBrand } from './utils/formatters';
+import {
+  KabupatenRekon,
+  RespondenData,
+  Komoditas,
+  Provinsi,
+  UserAuth,
+  StatusRekon,
+  DisplaySettings,
+  TipeSewaAlat,
+  LkSewaAlatData
+} from './types/rekonda';
+import { calculateStats, getDominantBrand, formatRupiahNumber } from './utils/formatters';
+import { getSewaAlatKabStatus, isSewaAlatKomoditas } from './utils/sewaAlatCalculator';
 import {
   exportCurrentTableToExcel,
   exportSeluruhRespondenToExcel,
@@ -67,6 +79,17 @@ export default function App() {
   const [isDisplayAdjustOpen, setIsDisplayAdjustOpen] = useState<boolean>(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+  const [lkModalState, setLkModalState] = useState<{
+    isOpen: boolean;
+    komoditasKode: string;
+    kabupatenKode: string;
+    respondentId: string | null;
+  }>({
+    isOpen: false,
+    komoditasKode: '5101',
+    kabupatenKode: '6101',
+    respondentId: null
+  });
 
   // Device & Display Settings (Persisted in localStorage)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(() => {
@@ -365,9 +388,53 @@ export default function App() {
   }, [database, currentKey, selectedProvinsi.kode, selectedKomoditas]);
 
   // Recalculate kabupaten metrics according to IKK cross-year 2026/2027 specs
-  const recalculateKabupatenMetrics = (kab: KabupatenRekon): KabupatenRekon => {
-    const res = kab.respondents;
-    
+  // For Sewa Alat (5101 - 5803): main table aggregates automatically ONLY once ALL respondents are pure rent (sewa_murni or LK-computed all_in)
+  const recalculateKabupatenMetrics = (
+    kab: KabupatenRekon,
+    isSewaAlatFlag?: boolean
+  ): KabupatenRekon => {
+    const res = kab.respondents || [];
+    const isSewaAlat = isSewaAlatFlag ?? false;
+
+    if (isSewaAlat) {
+      const st = getSewaAlatKabStatus(kab);
+      const derivedTipeSewa: TipeSewaAlat = st.allPure
+        ? st.hasAnyLk
+          ? 'all_in'
+          : 'sewa_murni'
+        : st.waitingLkCount > 0
+        ? 'all_in'
+        : 'belum_konfirmasi';
+
+      // If kab has respondents and NOT all are pure rent yet, preserve main RekonTable aggregate until all respondents are converted/confirmed
+      if (res.length > 0 && !st.allPure) {
+        return {
+          ...kab,
+          tipeSewa: derivedTipeSewa
+        };
+      }
+
+      // If kab has 0 respondents and LK was applied directly at kab level
+      if (res.length === 0) {
+        const hasKabLk =
+          kab.tipeSewa === 'all_in' &&
+          Boolean(kab.lkSewaAlat) &&
+          (kab.lkSewaAlat?.hasilSewaMurniBulan ?? 0) > 0;
+        const nextHarga2027 = hasKabLk ? Math.round(kab.lkSewaAlat!.hasilSewaMurniBulan) : kab.harga2027;
+        const nextRasio =
+          kab.harga2026 > 0 ? parseFloat(((nextHarga2027 / kab.harga2026) * 100).toFixed(2)) : 0;
+        return {
+          ...kab,
+          tipeSewa: derivedTipeSewa,
+          harga2027: nextHarga2027,
+          rasio: nextRasio
+        };
+      }
+
+      // Otherwise all respondents are pure rent -> fall through to compute aggregate TW, Harga 2027, CV, Rasio!
+      kab = { ...kab, tipeSewa: derivedTipeSewa };
+    }
+
     // Quarters for Current Year (IKK 2027: TW 3 & 4 2026, TW 1 & 2 2027)
     const tw3_26 = res.filter((r) => r.tahun === 2026 && r.triwulan === 3).map((r) => r.harga);
     const tw4_26 = res.filter((r) => r.tahun === 2026 && r.triwulan === 4).map((r) => r.harga);
@@ -387,10 +454,17 @@ export default function App() {
       statTw2_27.mean
     ].filter((m) => m > 0);
 
-    const newHarga2027 =
-      availableQuarterMeans.length > 0
-        ? Math.round(availableQuarterMeans.reduce((a, b) => a + b, 0) / availableQuarterMeans.length)
-        : kab.harga2027;
+    const hasCalculatedLkMurni =
+      !isSewaAlat &&
+      kab.tipeSewa === 'all_in' &&
+      Boolean(kab.lkSewaAlat) &&
+      (kab.lkSewaAlat?.hasilSewaMurniBulan ?? 0) > 0;
+
+    const newHarga2027 = hasCalculatedLkMurni
+      ? Math.round(kab.lkSewaAlat!.hasilSewaMurniBulan)
+      : availableQuarterMeans.length > 0
+      ? Math.round(availableQuarterMeans.reduce((a, b) => a + b, 0) / availableQuarterMeans.length)
+      : kab.harga2027;
 
     // Koefisien Variasi: variasi harga antar responden di kab/kota yang sama (tahun berjalan)
     const allCurrentPrices = res
@@ -443,7 +517,10 @@ export default function App() {
 
   // Update a single Kabupaten record
   const handleUpdateKabupaten = (updated: KabupatenRekon) => {
-    const recomputed = recalculateKabupatenMetrics(updated);
+    const recomputed = recalculateKabupatenMetrics(
+      updated,
+      isSewaAlatKomoditas(selectedKomoditas.kode)
+    );
     const currentList = [...currentKabupatenData];
     const index = currentList.findIndex((item) => item.id === recomputed.id || item.kode === recomputed.kode);
     if (index >= 0) {
@@ -503,13 +580,304 @@ export default function App() {
     showToast(`Status Rekon & Catatan berhasil diperbarui.`);
   };
 
+  // Open LK Penghitungan Sewa Alat Modal (Admin Provinsi ONLY)
+  const handleOpenLkModal = (
+    komoditasKode?: string,
+    kabupatenKode?: string,
+    respondentId?: string | null
+  ) => {
+    const isProvinsiAdmin = currentUser.isLoggedIn && (currentUser.isOwner || currentUser.role === 'pemilik');
+    if (!isProvinsiAdmin) {
+      if (!currentUser.isLoggedIn) {
+        setIsAuthModalOpen(true);
+      } else {
+        showToast('Akses terbatas: LK Penghitungan Sewa Alat hanya dapat diakses oleh Admin Provinsi.');
+      }
+      return;
+    }
+
+    const targetKom =
+      komoditasKode && isSewaAlatKomoditas(komoditasKode)
+        ? komoditasKode
+        : isSewaAlatKomoditas(selectedKomoditas.kode)
+        ? selectedKomoditas.kode
+        : '5101';
+
+    const targetKab = kabupatenKode || '6101';
+
+    setLkModalState({
+      isOpen: true,
+      komoditasKode: targetKom,
+      kabupatenKode: targetKab,
+      respondentId: respondentId || null
+    });
+  };
+
+  // Helper: persist a recomputed Kabupaten record to DB + server + active detailModal
+  const persistKabupatenChange = (
+    targetKey: string,
+    kabupatenKode: string,
+    updater: (kab: KabupatenRekon) => KabupatenRekon
+  ): KabupatenRekon | null => {
+    let updatedKabSnapshot: KabupatenRekon | null = null;
+    const isSewa = isSewaAlatKomoditas(targetKey.split('_')[1] || selectedKomoditas.kode);
+
+    setDatabase((prev) => {
+      const list = [...(prev[targetKey] || [])];
+      const idx = list.findIndex((k) => k.kode === kabupatenKode || k.id === kabupatenKode);
+      if (idx < 0) return prev;
+
+      const updatedRaw = updater(list[idx]);
+      const recomputed = recalculateKabupatenMetrics(updatedRaw, isSewa);
+      list[idx] = recomputed;
+      updatedKabSnapshot = recomputed;
+
+      const nextDb = { ...prev, [targetKey]: list };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(nextDb));
+      } catch {}
+
+      fetch('/api/kabupaten/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: targetKey, kabupaten: recomputed })
+      }).catch(() => {});
+
+      fetch('/api/save-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ database: nextDb })
+      }).catch(() => {});
+
+      return nextDb;
+    });
+
+    if (
+      updatedKabSnapshot &&
+      detailModalKab &&
+      (detailModalKab as KabupatenRekon).kode === kabupatenKode
+    ) {
+      setDetailModalKab(updatedKabSnapshot);
+    }
+
+    return updatedKabSnapshot;
+  };
+
+  // Confirm Sewa Murni / All-In / Belum Konfirmasi per Responden (or Kab fallback when respondentId === null)
+  const handleChangeTipeSewa = (
+    targetKey: string,
+    kabupatenKode: string,
+    respondentId: string | null,
+    nextTipeSewa: TipeSewaAlat
+  ) => {
+    if (!currentUser.isLoggedIn) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    const isProvinsiAdmin = currentUser.isOwner || currentUser.role === 'pemilik';
+    const canEditTarget =
+      isProvinsiAdmin ||
+      (currentUser.role === 'kabupaten' && currentUser.kabupatenKode === kabupatenKode);
+
+    if (!canEditTarget) {
+      showToast(`Akses ditolak: Anda hanya berhak mengubah konfirmasi sewa wilayah [${currentUser.kabupatenKode}].`);
+      return;
+    }
+
+    const updatedKab = persistKabupatenChange(targetKey, kabupatenKode, (existing) => {
+      if (respondentId && existing.respondents && existing.respondents.length > 0) {
+        const nextRespondents = existing.respondents.map((r) => {
+          if (r.id !== respondentId) return r;
+          const restoredHarga =
+            nextTipeSewa !== 'all_in' &&
+            r.lkSewaAlat?.hargaAwalSebelumLk &&
+            r.lkSewaAlat.hargaAwalSebelumLk > 0
+              ? r.lkSewaAlat.hargaAwalSebelumLk
+              : r.harga;
+          return {
+            ...r,
+            tipeSewa: nextTipeSewa,
+            harga: restoredHarga
+          };
+        });
+        return {
+          ...existing,
+          respondents: nextRespondents
+        };
+      }
+
+      // Kab-level fallback (e.g. 0 respondents) or batch update
+      const restoredBaseHarga =
+        nextTipeSewa !== 'all_in' &&
+        existing.lkSewaAlat?.hargaAwalSebelumLk &&
+        existing.lkSewaAlat.hargaAwalSebelumLk > 0
+          ? existing.lkSewaAlat.hargaAwalSebelumLk
+          : existing.harga2027;
+
+      const nextRespondents = (existing.respondents || []).map((r) => {
+        const restoredHarga =
+          nextTipeSewa !== 'all_in' &&
+          r.lkSewaAlat?.hargaAwalSebelumLk &&
+          r.lkSewaAlat.hargaAwalSebelumLk > 0
+            ? r.lkSewaAlat.hargaAwalSebelumLk
+            : r.harga;
+        return {
+          ...r,
+          tipeSewa: nextTipeSewa,
+          harga: restoredHarga
+        };
+      });
+
+      return {
+        ...existing,
+        tipeSewa: nextTipeSewa,
+        harga2027: restoredBaseHarga,
+        respondents: nextRespondents
+      };
+    });
+
+    const komKode = targetKey.split('_')[1] || selectedKomoditas.kode;
+
+    if (nextTipeSewa === 'all_in') {
+      if (isProvinsiAdmin) {
+        handleOpenLkModal(komKode, kabupatenKode, respondentId);
+      } else {
+        showToast(
+          `Konfirmasi All-In tersimpan. Penghitungan Sewa Murni di LK akan dilakukan oleh Admin Provinsi.`
+        );
+      }
+      return;
+    }
+
+    const st = updatedKab ? getSewaAlatKabStatus(updatedKab) : null;
+    if (st && st.total > 0 && st.allPure) {
+      showToast(
+        `Seluruh responden [${kabupatenKode}] sudah Sewa Murni (${st.pureCount}/${st.total}). Tabel Rekon Daerah utama otomatis dihitung!`
+      );
+    } else {
+      showToast(
+        nextTipeSewa === 'sewa_murni'
+          ? `Status sewa dikonfirmasi sebagai Sewa Murni.${
+              st && st.total > 0 ? ` (${st.pureCount}/${st.total} responden siap)` : ''
+            }`
+          : `Status konfirmasi sewa dikembalikan ke Belum Konfirmasi.`
+      );
+    }
+  };
+
+  // Apply calculated LK Sewa Alat Murni -> updates Responden price first, then auto-updates main Tabel Rekon Daerah once ALL respondents in Kab/Kota are pure rent
+  const handleApplyLkResult = (
+    targetKey: string,
+    kabupatenKode: string,
+    respondentId: string | null,
+    lkData: LkSewaAlatData,
+    appendCatatan: boolean,
+    markRekonSelesai: boolean
+  ) => {
+    if (!currentUser.isLoggedIn) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    const updatedKab = persistKabupatenChange(targetKey, kabupatenKode, (existing) => {
+      const nextStatus: StatusRekon = markRekonSelesai
+        ? 'rekon_selesai'
+        : existing.statusRekon || 'belum_rekon';
+
+      let nextCatatan = existing.catatan || '';
+      if (appendCatatan) {
+        const allInInput =
+          lkData.mode === 'alat_berat'
+            ? lkData.biayaAllInBulan
+            : lkData.tarifAllInGenset || lkData.biayaAllInBulan;
+
+        if (respondentId) {
+          const respName =
+            existing.respondents.find((r) => r.id === respondentId)?.nama || respondentId;
+          const respTag = `[LK ${respName}: All-In Rp ${formatRupiahNumber(
+            allInInput
+          )} -> Murni Rp ${formatRupiahNumber(lkData.hasilSewaMurniBulan)} (${lkData.adjustPajakProfitPct}%)]`;
+          const escapedName = respName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          nextCatatan = nextCatatan
+            .replace(new RegExp(`\\s*\\[LK ${escapedName}:[^\\]]*\\]`, 'g'), '')
+            .trim();
+          nextCatatan = nextCatatan ? `${nextCatatan} ${respTag}` : respTag;
+        } else {
+          nextCatatan = nextCatatan.replace(/\s*\[LK Sewa Murni:[^\]]*\]/g, '').trim();
+          const lkNoteTag = `[LK Sewa Murni: All-In Rp ${formatRupiahNumber(
+            allInInput
+          )} -> Murni Rp ${formatRupiahNumber(lkData.hasilSewaMurniBulan)} (Adj. ${
+            lkData.adjustPajakProfitPct
+          }%${lkData.includeWorkshop && lkData.mode === 'alat_berat' ? ', incl. Workshop' : ''})]`;
+          nextCatatan = nextCatatan ? `${nextCatatan} ${lkNoteTag}` : lkNoteTag;
+        }
+      }
+
+      if (respondentId && existing.respondents && existing.respondents.length > 0) {
+        const nextRespondents = existing.respondents.map((r) => {
+          if (r.id !== respondentId) return r;
+          return {
+            ...r,
+            tipeSewa: 'all_in' as TipeSewaAlat,
+            lkSewaAlat: lkData,
+            harga: lkData.hasilSewaMurniBulan
+          };
+        });
+
+        return {
+          ...existing,
+          respondents: nextRespondents,
+          catatan: nextCatatan,
+          statusRekon: nextStatus,
+          isVerified: nextStatus === 'rekon_selesai'
+        };
+      }
+
+      // Kab-level fallback when 0 respondents exist
+      return {
+        ...existing,
+        tipeSewa: 'all_in',
+        lkSewaAlat: lkData,
+        harga2027: lkData.hasilSewaMurniBulan,
+        catatan: nextCatatan,
+        statusRekon: nextStatus,
+        isVerified: nextStatus === 'rekon_selesai'
+      };
+    });
+
+    const st = updatedKab ? getSewaAlatKabStatus(updatedKab) : null;
+    if (st && st.total > 0) {
+      if (st.allPure) {
+        showToast(
+          `Harga responden diubah ke Sewa Murni (Rp ${formatRupiahNumber(
+            lkData.hasilSewaMurniBulan
+          )}). Semua ${st.total} responden siap — Tabel Rekon Daerah utama otomatis diperbarui!`
+        );
+      } else {
+        showToast(
+          `Detail responden diperbarui (Rp ${formatRupiahNumber(
+            lkData.hasilSewaMurniBulan
+          )}). Progres Kab/Kota: ${st.pureCount}/${st.total} responden siap Sewa Murni.`
+        );
+      }
+    } else {
+      showToast(
+        `Biaya sewa murni (Rp ${formatRupiahNumber(
+          lkData.hasilSewaMurniBulan
+        )}) berhasil diterapkan ke Tabel Rekon Daerah & Tabel Anomali!`
+      );
+    }
+  };
+
   // Upload Apply Data
   const handleApplyUploadedData = (
     updatedList: KabupatenRekon[],
     sheetType: 'rekonda26' | 'tabel71'
   ) => {
+    const isSewa = isSewaAlatKomoditas(selectedKomoditas.kode);
     const recomputed = updatedList.map((item) => {
-      const metric = recalculateKabupatenMetrics(item);
+      const metric = recalculateKabupatenMetrics(item, isSewa);
       if (sheetType === 'rekonda26') {
         metric.harga2026 = item.harga2026;
         metric.hargaTw3_2025 = item.hargaTw3_2025;
@@ -695,6 +1063,7 @@ export default function App() {
         onOpenUpload={() => setIsUploadModalOpen(true)}
         onOpenDisplayAdjust={() => setIsDisplayAdjustOpen(true)}
         onOpenUserManagement={() => setIsUserManagementOpen(true)}
+        onOpenLkSewaAlat={() => handleOpenLkModal()}
         onDownloadSeluruhKualitas={handleExportSeluruhKualitas}
         onDownloadSeluruhResponden={handleExportSeluruhResponden}
         onLogout={handleLogout}
@@ -771,6 +1140,8 @@ export default function App() {
             {/* Main Data Table with Responsive Scroll & Density */}
             <RekonTable
               data={currentKabupatenData}
+              selectedKomoditas={selectedKomoditas}
+              dbKey={currentKey}
               density={displaySettings.density}
               onOpenDetail={(item) => {
                 setDetailModalKab(item);
@@ -788,6 +1159,10 @@ export default function App() {
               selectedId={selectedKabupatenId}
               onSelectRow={(item) => setSelectedKabupatenId(item.id)}
               onSortedDataChange={(sorted) => setChartSortedData(sorted)}
+              onOpenLkSewaAlat={(kab) => handleOpenLkModal(selectedKomoditas.kode, kab.kode)}
+              onChangeTipeSewa={(kab, nextTipe) =>
+                handleChangeTipeSewa(currentKey, kab.kode, null, nextTipe)
+              }
               currentUser={currentUser}
             />
 
@@ -812,6 +1187,10 @@ export default function App() {
             currentUser={currentUser}
             onOpenAuth={() => setIsAuthModalOpen(true)}
             onUpdateAnomali={handleUpdateAnomali}
+            onOpenLkSewaAlat={(komKode, kabKode) => handleOpenLkModal(komKode, kabKode)}
+            onChangeTipeSewa={(targetDbKey, kabKode, nextTipe) =>
+              handleChangeTipeSewa(targetDbKey, kabKode, null, nextTipe)
+            }
             onOpenDetail={(kab, kom) => {
               const idx = KOMODITAS_LIST.findIndex((k) => k.kode === kom.kode);
               if (idx >= 0) setKomoditasIndex(idx);
@@ -838,7 +1217,7 @@ export default function App() {
       </footer>
       </div>
 
-      {/* Detail Rekonda Modal (Matching Screenshot 2 + Sorting on respondents) */}
+      {/* Detail Rekonda Modal (Matching Screenshot 2 + Sorting on respondents + Per-Respondent Sewa Alat) */}
       {activeDetailKab && (
         <DetailModal
           isOpen={Boolean(activeDetailKab)}
@@ -849,6 +1228,15 @@ export default function App() {
           onOpenAddRespondent={handleOpenAddRespondent}
           onOpenEditRespondent={handleOpenEditRespondent}
           onDeleteRespondent={handleDeleteRespondent}
+          onChangeRespondentTipeSewa={(kabKode, respId, nextTipe) =>
+            handleChangeTipeSewa(currentKey, kabKode, respId, nextTipe)
+          }
+          onBatchChangeAllRespondentsTipeSewa={(kabKode, nextTipe) =>
+            handleChangeTipeSewa(currentKey, kabKode, null, nextTipe)
+          }
+          onOpenLkForRespondent={(komKode, kabKode, respId) =>
+            handleOpenLkModal(komKode, kabKode, respId)
+          }
           currentUser={currentUser}
           onOpenAuth={() => setIsAuthModalOpen(true)}
         />
@@ -914,6 +1302,22 @@ export default function App() {
         onClose={() => setIsUserManagementOpen(false)}
         onSuccessToast={showToast}
         currentUser={currentUser}
+      />
+
+      {/* LK Penghitungan Sewa Alat Berat (Kode 5101 - 5803, Per-Responden, Khusus Admin Provinsi) */}
+      <LkSewaAlatModal
+        isOpen={lkModalState.isOpen}
+        onClose={() => setLkModalState((prev) => ({ ...prev, isOpen: false }))}
+        provinsi={selectedProvinsi}
+        komoditasList={KOMODITAS_LIST}
+        database={database}
+        initialKomoditasKode={lkModalState.komoditasKode}
+        initialKabupatenKode={lkModalState.kabupatenKode}
+        initialRespondentId={lkModalState.respondentId}
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onApplyLkResult={handleApplyLkResult}
+        onChangeTipeSewa={handleChangeTipeSewa}
       />
     </div>
   );

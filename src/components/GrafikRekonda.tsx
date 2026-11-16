@@ -80,9 +80,9 @@ export const GrafikRekonda: React.FC<GrafikRekondaProps> = ({
       ? Math.round(validPrices2027.reduce((a, b) => a + b, 0) / validPrices2027.length)
       : 0;
 
-  // Find max price among both 2027 and 2026 for comprehensive scaling
+  // Find max price among 2027 bars for scaling
   const maxPriceVal = useMemo(() => {
-    const all = data.flatMap((d) => [d.harga2027, d.harga2026 || 0]).filter((p) => p > 0);
+    const all = data.map((d) => d.harga2027).filter((p) => p > 0);
     return all.length > 0 ? Math.max(...all) : 10000;
   }, [data]);
 
@@ -112,10 +112,6 @@ export const GrafikRekonda: React.FC<GrafikRekondaProps> = ({
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-xs bg-[#0284c7]" />
             <span className="font-semibold text-slate-700">Harga 2027 (Berjalan)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-0.5 bg-slate-400" />
-            <span className="text-slate-500">Harga 2026: Rata-rata</span>
           </div>
           <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
             <span className="w-3 border-b-2 border-dashed border-rose-500" />
@@ -208,9 +204,7 @@ export const GrafikRekonda: React.FC<GrafikRekondaProps> = ({
             <div className="absolute inset-0 flex items-end justify-between gap-1 sm:gap-2 px-1 sm:px-2">
               {data.map((item) => {
                 const val27 = item.harga2027;
-                const val26 = item.harga2026 || 0;
                 const heightPercent27 = Math.min(100, Math.max(2, (val27 / topScale) * 100));
-                const heightPercent26 = Math.min(100, Math.max(0, (val26 / topScale) * 100));
                 const isSelected = selectedId === item.id;
                 const isHovered = hoveredKab?.id === item.id;
 
@@ -239,15 +233,6 @@ export const GrafikRekonda: React.FC<GrafikRekondaProps> = ({
 
                     {/* Bars Display */}
                     <div className="w-full flex items-end justify-center h-full relative">
-                      {/* Harga 2026 Background Reference Ghost Marker */}
-                      {val26 > 0 && (
-                        <div
-                          className="absolute w-full max-w-[42px] border-t-2 border-slate-400/80 z-0 pointer-events-none"
-                          style={{ bottom: `${heightPercent26}%` }}
-                          title={`Harga 2026: ${formatRupiahNumber(val26)}`}
-                        />
-                      )}
-
                       {/* Main Bar: Harga 2027 */}
                       <div
                         className={`w-full max-w-[36px] rounded-t-xs transition-all duration-200 shadow-2xs ${
